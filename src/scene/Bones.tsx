@@ -7,9 +7,15 @@ import { segmentMatrix } from '../engine/kinematics'
 import { SEGMENTS, type SegmentId } from '../engine/skeleton'
 import { useStore } from '../state/store'
 import { boneGeometries } from './boneGeometry'
+import { isPlainClick } from './pointer'
 
 const noRaycast = () => {}
 const blockPointer = (e: ThreeEvent<PointerEvent>) => e.stopPropagation()
+/** Clicking a bone counts as clicking outside the muscles (and does not reach muscles behind). */
+const deselectOnBone = (e: ThreeEvent<MouseEvent>) => {
+  e.stopPropagation()
+  if (isPlainClick(e.nativeEvent)) useStore.getState().selectMuscle(null)
+}
 
 /**
  * Optional real bone meshes. Put GLB files in public/models/bones/ and list them in
@@ -97,6 +103,7 @@ export function Bones() {
               raycast={visible ? Mesh.prototype.raycast : noRaycast}
               onPointerOver={blockPointer}
               onPointerMove={blockPointer}
+              onClick={deselectOnBone}
             />
           ))}
         </group>

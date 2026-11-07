@@ -2,6 +2,7 @@ import { ContactShadows, Grid } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useStore } from '../state/store'
 import { Bones } from './Bones'
+import { isPlainClick, rememberPointerDown } from './pointer'
 import { CameraControls } from './CameraControls'
 import { JointGizmos } from './JointGizmos'
 import { Muscles } from './Muscles'
@@ -16,13 +17,20 @@ function Animator() {
 
 export function Scene() {
   const selectJoint = useStore((s) => s.selectJoint)
+  const selectMuscle = useStore((s) => s.selectMuscle)
   return (
     <Canvas
       shadows
       dpr={[1, 2]}
       camera={{ position: [2.2, 1.5, 3.05], fov: 36, near: 0.05, far: 50 }}
       gl={{ antialias: true, preserveDrawingBuffer: true }}
-      onPointerMissed={() => selectJoint(null)}
+      onPointerDown={rememberPointerDown}
+      onPointerMissed={(e) => {
+        // A left click on empty space clears the selection; drags (orbiting) do not.
+        if (!isPlainClick(e)) return
+        selectJoint(null)
+        selectMuscle(null)
+      }}
     >
       <color attach="background" args={['#0f172a']} />
       <fog attach="fog" args={['#0f172a', 6, 14]} />

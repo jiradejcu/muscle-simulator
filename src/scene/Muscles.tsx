@@ -6,6 +6,7 @@ const noRaycast = () => {}
 import { pathLength } from '../engine/musclePath'
 import { useStore } from '../state/store'
 import { changeColor, fibreTexture, heatColor, MuscleTube } from './muscleTube'
+import { isPlainClick } from './pointer'
 
 const BELLY = new Color('#b03a32')
 const BELLY_DEEP = new Color('#8f2f2c')
@@ -127,7 +128,7 @@ export function Muscles() {
   }
   const onClick = (e: ThreeEvent<MouseEvent>, key: string) => {
     e.stopPropagation()
-    selectMuscle(key)
+    if (isPlainClick(e.nativeEvent)) selectMuscle(key)
   }
 
   return (
