@@ -55,6 +55,8 @@ export interface Profile {
   strength: StrengthLevel
   /** Postural conditions, severity 0..1 each. */
   conditions: ConditionLevels
+  /** Strength of individual muscles, by side ("gluteusMaximus.L"): 1 = normal. */
+  muscleStrength: Record<string, number>
 }
 
 export const STRENGTH_FACTOR: Record<StrengthLevel, number> = { untrained: 0.7, average: 1, trained: 1.4 }
@@ -62,7 +64,7 @@ export const STRENGTH_FACTOR: Record<StrengthLevel, number> = { untrained: 0.7, 
 export function defaultProfile(): Profile {
   const flexibility = {} as Record<ProfileKey, number>
   for (const item of PROFILE_ITEMS) flexibility[item.key] = item.normal
-  return { flexibility, bodyMass: 70, strength: 'average', conditions: {} }
+  return { flexibility, bodyMass: 70, strength: 'average', conditions: {}, muscleStrength: {} }
 }
 
 export interface ProfilePreset {

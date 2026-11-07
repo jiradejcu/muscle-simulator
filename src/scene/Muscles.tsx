@@ -5,7 +5,7 @@ import { Color, Mesh, MeshStandardMaterial, Vector3 } from 'three'
 const noRaycast = () => {}
 import { pathLength } from '../engine/musclePath'
 import { useStore } from '../state/store'
-import { fibreTexture, heatColor, MuscleTube } from './muscleTube'
+import { changeColor, fibreTexture, heatColor, MuscleTube } from './muscleTube'
 
 const BELLY = new Color('#b03a32')
 const BELLY_DEEP = new Color('#8f2f2c')
@@ -42,18 +42,21 @@ export function Muscles() {
   useEffect(() => () => items.forEach((i) => (i.tube.dispose(), i.material.dispose())), [items])
 
   const lastVersion = useRef(-1)
-  const lastHeat = useRef<boolean | null>(null)
+  const lastHeat = useRef<string | null>(null)
   useEffect(() => {
     lastVersion.current = -1
   }, [items])
 
   useFrame(() => {
     const st = useStore.getState()
-    if (st.version === lastVersion.current && lastHeat.current === st.view.heat) return
+    const heatKey = `${st.view.heat}|${st.view.heatMode}`
+    if (st.version === lastVersion.current && lastHeat.current === heatKey) return
     lastVersion.current = st.version
-    lastHeat.current = st.view.heat
-    const { sim } = st.analysis
+    lastHeat.current = heatKey
+    const { sim, baseline } = st.analysis
     const byKey = new Map(sim.strands.map((s) => [s.key, s]))
+    const baseByKey = baseline ? new Map(baseline.strands.map((s) => [s.key, s])) : null
+    const changeMode = st.view.heatMode === 'change' && !!baseByKey
     const pts: Vector3[] = []
     const heatC = new Color()
     for (let i = 0; i < items.length; i++) {
@@ -82,7 +85,8 @@ export function Muscles() {
         return rT + (R - rT) * shape
       }
       const base = it.layer === 'deep' ? BELLY_DEEP : BELLY
-      heatColor(res.heat, heatC)
+      if (changeMode) changeColor(res.activation - (baseByKey!.get(it.key)?.activation ?? 0), heatC)
+      else heatColor(res.heat, heatC)
       const heatOn = st.view.heat
       const color = (t: number, out: Color) => {
         const inTendon = t < tA || t > 1 - tB

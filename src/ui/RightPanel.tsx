@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { explainMuscle, MUSCLE_BY_ID, type Severity } from '../engine'
+import { DOF_BY_KEY, explainMuscle, JOINT_BY_ID, MUSCLE_BY_ID, type Severity } from '../engine'
 import { heatColor, HEAT_GRADIENT_CSS } from '../scene/muscleTube'
 import { useStore } from '../state/store'
-import { Bar, Section } from './controls'
+import { Bar, Section, Slider } from './controls'
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
 const cssHeat = (v: number) => `#${heatColor(v).getHexString()}`
@@ -12,6 +12,7 @@ export function RightPanel() {
     <aside className="flex w-[360px] shrink-0 flex-col border-l border-slate-700/60 bg-slate-900/95">
       <div className="flex-1 overflow-y-auto px-4 py-3">
         <MuscleDetails />
+        <TakeOver />
         <WarningList />
         <TopMuscles />
       </div>
@@ -61,6 +62,8 @@ function MuscleDetails() {
           <span className="font-medium">Feels like:</span> {ex.feel}
         </div>
       </div>
+
+      <StrengthControl muscleKey={m.key} />
 
       <p className="mb-2 text-[13px] leading-snug text-slate-200">{ex.stretchText}</p>
       <p className="mb-2 text-[13px] leading-snug text-slate-200">{ex.loadText}</p>
@@ -174,6 +177,118 @@ function TopMuscles() {
           </button>
         ))}
       </div>
+    </Section>
+  )
+}
+
+/** Strength of the selected muscle, and how its force compares with normal strength. */
+function StrengthControl({ muscleKey }: { muscleKey: string }) {
+  const strength = useStore((s) => s.profile.muscleStrength[muscleKey] ?? 1)
+  const setStrength = useStore((s) => s.setMuscleStrength)
+  const now = useStore((s) => s.analysis.sim.muscleByKey[muscleKey])
+  const base = useStore((s) => s.analysis.baseline?.muscleByKey[muscleKey])
+  const [id] = muscleKey.split('.')
+  const otherSide = useStore((s) => s.profile.muscleStrength[`${id}.${muscleKey.endsWith('L') ? 'R' : 'L'}`] ?? 1)
+  return (
+    <div className="mb-3 rounded-lg border border-slate-700 p-2.5">
+      <Slider
+        label="Strength of this muscle (this side)"
+        hint="Make the muscle weaker (injury, disuse) or stronger and see which muscles take over"
+        value={Math.round(strength * 100)}
+        min={0}
+        max={150}
+        step={5}
+        unit="%"
+        marker={100}
+        onChange={(v) => setStrength(muscleKey, Math.max(0.01, v / 100))}
+      />
+      <div className="mt-1 flex flex-wrap items-center gap-2 text-[11.5px]">
+        <button onClick={() => setStrength(muscleKey, strength, true)} className="text-sky-300 hover:text-sky-200" disabled={otherSide === strength}>
+          Apply to both sides
+        </button>
+        {strength !== 1 && (
+          <button onClick={() => setStrength(muscleKey, 1)} className="text-slate-400 hover:text-slate-200">
+            Reset
+          </button>
+        )}
+      </div>
+      {base && Math.abs(base.force - now.force) > 5 && (
+        <p className="mt-1.5 text-[12px] leading-snug text-slate-300">
+          Force {Math.round(now.force)} N instead of {Math.round(base.force)} N at normal strength
+          {now.force < base.force ? ' – the rest is carried by other muscles (see below).' : '.'}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** When any muscle is weakened: who works harder, who works less, and what cannot be covered. */
+function TakeOver() {
+  const analysis = useStore((s) => s.analysis)
+  const strengths = useStore((s) => s.profile.muscleStrength)
+  const reset = useStore((s) => s.resetMuscleStrength)
+  const selectMuscle = useStore((s) => s.selectMuscle)
+  const setView = useStore((s) => s.setView)
+  const changeMode = useStore((s) => s.view.heatMode === 'change')
+  const { sim, baseline } = analysis
+  if (!baseline) return null
+  const changes = sim.muscles
+    .map((m) => ({ m, d: m.activation - (baseline.muscleByKey[m.key]?.activation ?? 0), df: m.force - (baseline.muscleByKey[m.key]?.force ?? 0) }))
+    .filter((x) => Math.abs(x.d) > 0.02 || Math.abs(x.df) > 20)
+    .sort((a, b) => b.d - a.d)
+  const harder = changes.filter((x) => x.d > 0).slice(0, 8)
+  const less = changes.filter((x) => x.d <= 0).sort((a, b) => a.df - b.df).slice(0, 5)
+  const weakened = Object.entries(strengths).filter(([, v]) => v !== 1)
+  const maxed = sim.muscles.filter((m) => m.activation > 0.985)
+  const unheld = Object.keys(sim.reserve).filter((k) => Math.abs(sim.reserve[k]) > Math.max(20, sim.reserveCapacity[k] * 1.5))
+  const row = (x: (typeof changes)[number]) => (
+    <button
+      key={x.m.key}
+      onClick={() => selectMuscle(x.m.key)}
+      className="flex w-full items-center justify-between rounded px-1.5 py-0.5 text-left text-[12.5px] text-slate-300 hover:bg-slate-800"
+    >
+      <span>
+        {x.m.side} · {x.m.def.name}
+      </span>
+      <span className={`tabular-nums text-[11.5px] ${x.d > 0 ? 'text-orange-300' : 'text-sky-300'}`}>
+        {x.d > 0 ? '+' : ''}
+        {Math.round(x.d * 100)}% effort · {x.df > 0 ? '+' : ''}
+        {Math.round(x.df)} N
+      </span>
+    </button>
+  )
+  return (
+    <Section
+      title="Who takes over"
+      right={
+        <button onClick={() => setView({ heatMode: changeMode ? 'effort' : 'change', heat: true })} className="text-[11px] text-sky-300 hover:text-sky-200">
+          {changeMode ? 'Colour by effort' : 'Colour by change'}
+        </button>
+      }
+    >
+      <p className="mb-1.5 text-[12px] leading-snug text-slate-400">
+        Compared with every muscle at normal strength in this same pose.
+        {weakened.length > 0 && (
+          <>
+            {' '}
+            Changed: {weakened.map(([k, v]) => `${k.endsWith('L') ? 'L' : 'R'} ${MUSCLE_BY_ID[k.split('.')[0]].name} ${Math.round(v * 100)}%`).join(', ')}.{' '}
+            <button onClick={reset} className="text-sky-300 hover:text-sky-200">
+              Reset all
+            </button>
+          </>
+        )}
+      </p>
+      {harder.length > 0 && <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Work harder</div>}
+      {harder.map(row)}
+      {less.length > 0 && <div className="mb-0.5 mt-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Work less</div>}
+      {less.map(row)}
+      {harder.length === 0 && less.length === 0 && <p className="text-[12.5px] text-slate-400">No noticeable change in this pose: the weakened muscle has little to do here.</p>}
+      {(maxed.length > 0 || unheld.length > 0) && (
+        <p className="mt-2 rounded-md border border-red-400/40 bg-red-500/10 p-2 text-[12px] leading-snug text-red-100">
+          {maxed.length > 0 && <>At their limit: {maxed.map((m) => `${m.side} ${m.def.name}`).join(', ')}. </>}
+          {unheld.length > 0 && <>Not enough muscle strength left at: {unheld.map((k) => `${JOINT_BY_ID[DOF_BY_KEY[k].joint].label} (${DOF_BY_KEY[k].label.toLowerCase()})`).join(', ')}; ligaments and joint structures would be strained.</>}
+        </p>
+      )}
     </Section>
   )
 }

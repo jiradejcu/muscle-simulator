@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CONDITIONS, DOFS, JOINTS, POSES, POSE_BY_ID, PROFILE_ITEMS, PROFILE_PRESETS, type StrengthLevel } from '../engine'
+import { CONDITIONS, DOFS, JOINTS, MUSCLE_BY_ID, POSES, POSE_BY_ID, PROFILE_ITEMS, PROFILE_PRESETS, type StrengthLevel } from '../engine'
 import { useStore } from '../state/store'
 import { Section, Slider, Toggle } from './controls'
 
@@ -172,6 +172,11 @@ function ProfileTab() {
   const setBodyMass = useStore((s) => s.setBodyMass)
   const setStrength = useStore((s) => s.setStrength)
   const setCondition = useStore((s) => s.setCondition)
+  const muscleStrength = useStore((s) => s.profile.muscleStrength)
+  const setMuscleStrength = useStore((s) => s.setMuscleStrength)
+  const resetMuscleStrength = useStore((s) => s.resetMuscleStrength)
+  const selectMuscle = useStore((s) => s.selectMuscle)
+  const changedMuscles = Object.entries(muscleStrength).filter(([, v]) => v !== 1)
   const activeConditions = CONDITIONS.filter((c) => (profile.conditions[c.id] ?? 0) > 0).length
   return (
     <>
@@ -224,6 +229,38 @@ function ProfileTab() {
               onChange={(v) => setCondition(c.id, v / 100)}
             />
             {(profile.conditions[c.id] ?? 0) > 0 && <p className="-mt-0.5 mb-1 text-[11px] leading-snug text-slate-500">{c.summary}</p>}
+          </div>
+        ))}
+      </Section>
+      <Section
+        title={`Muscle strength${changedMuscles.length ? ` (${changedMuscles.length} changed)` : ''}`}
+        right={
+          changedMuscles.length ? (
+            <button onClick={resetMuscleStrength} className="text-[11px] text-sky-300 hover:text-sky-200">
+              Reset all
+            </button>
+          ) : null
+        }
+      >
+        <p className="mb-2 text-[12px] leading-snug text-slate-400">
+          Click any muscle and use its strength slider in the right panel to weaken it (injury, disuse) and see which muscles take over.
+        </p>
+        {changedMuscles.map(([key, v]) => (
+          <div key={key} className="mb-1">
+            <Slider
+              label={
+                <button className="text-left hover:text-white" onClick={() => selectMuscle(key)}>
+                  {key.endsWith('L') ? 'Left' : 'Right'} {MUSCLE_BY_ID[key.split('.')[0]].name}
+                </button>
+              }
+              value={Math.round(v * 100)}
+              min={0}
+              max={150}
+              step={5}
+              unit="%"
+              marker={100}
+              onChange={(x) => setMuscleStrength(key, Math.max(0.01, x / 100))}
+            />
           </div>
         ))}
       </Section>

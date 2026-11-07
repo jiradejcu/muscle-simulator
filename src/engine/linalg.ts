@@ -28,13 +28,14 @@ export function solveSPD(A: Float64Array, b: Float64Array, n: number): Float64Ar
 }
 
 /**
- * Minimum weighted norm with equality constraints and non-negativity on some variables:
- *   minimise  sum_j (x_j / w_j)^2   subject to  A x = b,  x_j >= 0 for j in nonNeg.
- * A is m*n row-major (m constraints). Each sub-problem has the closed form
- * x = W A^T (A W A^T)^-1 b with W = diag(w^2) over the free variables. An active-set loop
- * releases the most negative variable, or re-admits a variable whose Lagrange multiplier
- * shows it would lower the cost, until the KKT conditions hold. Unconstrained variables
- * (reserves) keep the system well-posed.
+ * Minimum weighted norm with equality constraints and bounds on some variables:
+ *   minimise  sum_j (x_j / w_j)^2   subject to  A x = b,
+ *             x_j >= 0 for j in nonNeg,   x_j <= upper_j where upper_j is finite.
+ * A is m*n row-major (m constraints). With the bounded variables held at their bounds, the
+ * free variables have the closed form x = W A^T (A W A^T)^-1 b' with W = diag(w^2). An
+ * active-set loop fixes the worst bound violation, or releases a fixed variable whose
+ * Lagrange multiplier shows the cost would drop, until the KKT conditions hold.
+ * Unconstrained variables (reserves) keep the system solvable.
  */
 export function weightedMinNorm(
   A: Float64Array,
@@ -43,16 +44,29 @@ export function weightedMinNorm(
   n: number,
   w: Float64Array,
   nonNeg: Uint8Array,
+  upper?: Float64Array,
   ridge = 1e-9,
-  maxIter = 400,
+  maxIter = 600,
 ): Float64Array {
-  const active = new Uint8Array(n).fill(1)
+  const FREE = 0
+  const LOWER = 1
+  const UPPER = 2
+  const state = new Uint8Array(n) // all free
+  const ub = (j: number) => (upper ? upper[j] : Infinity)
   const W = new Float64Array(n)
   let x: Float64Array = new Float64Array(n)
   let lambda: Float64Array = new Float64Array(m)
+  const rhs = new Float64Array(m)
 
   const solve = () => {
-    for (let j = 0; j < n; j++) W[j] = active[j] ? w[j] * w[j] : 0
+    rhs.set(b)
+    for (let j = 0; j < n; j++) {
+      W[j] = state[j] === FREE ? w[j] * w[j] : 0
+      if (state[j] === UPPER) {
+        const u = ub(j)
+        for (let r = 0; r < m; r++) rhs[r] -= A[r * n + j] * u
+      }
+    }
     const M = new Float64Array(m * m)
     for (let r = 0; r < m; r++) {
       const ro = r * n
@@ -74,59 +88,82 @@ export function weightedMinNorm(
     for (let r = 0; r < m; r++) trace += M[r * m + r]
     const eps = ridge * (trace / m + 1e-12)
     for (let r = 0; r < m; r++) M[r * m + r] += eps
-    lambda = solveSPD(M, b, m)
+    lambda = solveSPD(M, rhs, m)
     x = new Float64Array(n)
     for (let j = 0; j < n; j++) {
+      if (state[j] === UPPER) {
+        x[j] = ub(j)
+        continue
+      }
       if (!W[j]) continue
       let sum = 0
       for (let r = 0; r < m; r++) sum += A[r * n + j] * lambda[r]
       x[j] = W[j] * sum
     }
   }
+  const multiplier = (j: number) => {
+    let g = 0
+    for (let r = 0; r < m; r++) g += A[r * n + j] * lambda[r]
+    return g
+  }
 
   solve()
   for (let iter = 0; iter < maxIter; iter++) {
-    // 1. Drop the most negative constrained variable(s). Dropping several at once early on
-    //    speeds things up; the re-admission step below repairs any over-eager drops.
+    // 1. Fix the worst bound violation among free variables (several negatives at once on
+    //    the first passes to speed things up; step 2 repairs over-eager fixes).
     let worst = -1
     let worstVal = 0
+    let worstState = FREE
     let negatives = 0
     for (let j = 0; j < n; j++) {
-      if (nonNeg[j] && active[j] && x[j] < 0) {
+      if (state[j] !== FREE) continue
+      if (nonNeg[j] && x[j] < 0) {
         negatives++
-        const v = x[j] / w[j]
-        if (v < worstVal) {
+        const v = -x[j] / w[j]
+        if (v > worstVal) {
           worstVal = v
           worst = j
+          worstState = LOWER
+        }
+      } else if (x[j] > ub(j)) {
+        const v = (x[j] - ub(j)) / w[j]
+        if (v > worstVal) {
+          worstVal = v
+          worst = j
+          worstState = UPPER
         }
       }
     }
     if (worst >= 0) {
       if (iter < 3 && negatives > 4) {
-        for (let j = 0; j < n; j++) if (nonNeg[j] && active[j] && x[j] < 0) active[j] = 0
+        for (let j = 0; j < n; j++) if (state[j] === FREE && nonNeg[j] && x[j] < 0) state[j] = LOWER
       } else {
-        active[worst] = 0
+        state[worst] = worstState
       }
       solve()
       continue
     }
-    // 2. Re-admit the inactive variable with the largest positive multiplier A_j^T lambda.
+    // 2. Release the fixed variable that most wants to move back into the interior.
     let best = -1
     let bestVal = 1e-9
     for (let j = 0; j < n; j++) {
-      if (active[j]) continue
-      let g = 0
-      for (let r = 0; r < m; r++) g += A[r * n + j] * lambda[r]
-      const v = g * w[j]
+      if (state[j] === FREE) continue
+      const g = multiplier(j)
+      // At zero: would grow if g > 0. At the upper bound: its unconstrained value w^2 g is
+      // below the bound, so it would rather shrink.
+      const v = state[j] === LOWER ? g * w[j] : (ub(j) - w[j] * w[j] * g) / w[j]
       if (v > bestVal) {
         bestVal = v
         best = j
       }
     }
     if (best < 0) break
-    active[best] = 1
+    state[best] = FREE
     solve()
   }
-  for (let j = 0; j < n; j++) if (nonNeg[j] && x[j] < 0) x[j] = 0
+  for (let j = 0; j < n; j++) {
+    if (nonNeg[j] && x[j] < 0) x[j] = 0
+    if (x[j] > ub(j)) x[j] = ub(j)
+  }
   return x
 }

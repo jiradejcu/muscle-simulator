@@ -23,6 +23,8 @@ import type { ContextMenuState } from '../scene/cameraActions'
 
 export interface ViewOptions {
   heat: boolean
+  /** Colour by effort/stretch, or by change versus normal strength. */
+  heatMode: 'effort' | 'change'
   superficial: boolean
   deep: boolean
   bones: boolean
@@ -78,6 +80,8 @@ export interface AppState {
   setBodyMass: (kg: number) => void
   setStrength: (s: StrengthLevel) => void
   setCondition: (id: ConditionId, severity: number) => void
+  setMuscleStrength: (key: string, strength: number, bothSides?: boolean) => void
+  resetMuscleStrength: () => void
   applyProfilePreset: (id: string) => void
   selectMuscle: (key: string | null) => void
   hoverMuscle: (key: string | null) => void
@@ -140,7 +144,7 @@ export const useStore = create<AppState>((set, get) => {
     selectedMuscle: 'vasti.L',
     hoveredMuscle: null,
     selectedJoint: null,
-    view: { heat: true, superficial: true, deep: true, bones: true, labels: true, gizmos: false, forces: false },
+    view: { heat: true, heatMode: 'effort', superficial: true, deep: true, bones: true, labels: true, gizmos: false, forces: false },
 
     setPose: (id) => {
       const pose = POSE_BY_ID[id]
@@ -229,6 +233,19 @@ export const useStore = create<AppState>((set, get) => {
     setStrength: (strength) => {
       const profile = { ...get().profile, strength }
       recompute({ profile })
+    },
+    setMuscleStrength: (key, strength, bothSides) => {
+      const [id, side] = key.split('.')
+      const keys = bothSides ? [`${id}.L`, `${id}.R`] : [`${id}.${side}`]
+      const muscleStrength = { ...get().profile.muscleStrength }
+      for (const k of keys) {
+        if (Math.abs(strength - 1) < 1e-6) delete muscleStrength[k]
+        else muscleStrength[k] = strength
+      }
+      recompute({ profile: { ...get().profile, muscleStrength } })
+    },
+    resetMuscleStrength: () => {
+      recompute({ profile: { ...get().profile, muscleStrength: {} }, view: { ...get().view, heatMode: 'effort' } })
     },
     setCondition: (id, severity) => {
       const profile = { ...get().profile, conditions: { ...get().profile.conditions, [id]: severity } }

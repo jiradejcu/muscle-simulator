@@ -33,6 +33,11 @@ npm run build      # type-check + production build into dist/
   hyperkyphosis, hyperlordosis / anterior pelvic tilt, flat back, forward head, rounded
   shoulders, knock knees, bow legs, flat feet, knee hyperextension, weak glutes, weak core),
   each with a severity slider.
+- **Weak muscles**: select any muscle and drag its *Strength* slider (this side, or both
+  sides). A muscle can never exceed 100 % of its strength, so its work passes to the other
+  muscles that can help; if they also run out, the joint is flagged as "cannot hold" (ligaments
+  would be strained). *Who takes over* lists the muscles working harder or less than at normal
+  strength, and the toolbar's *Change vs normal strength* colours the body the same way.
 - **3D view toolbar**: heat overlay, superficial/deep muscle layers, bones, labels,
   forces (floor reaction, load, centre of mass) and joint handles.
 - **Right panel**: the selected muscle's length, stretch against your comfortable range,

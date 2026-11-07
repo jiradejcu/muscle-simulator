@@ -186,3 +186,15 @@ export function heatColor(v: number, out = new Color()): Color {
 }
 
 export const HEAT_GRADIENT_CSS = 'linear-gradient(90deg, #2f6fde 0%, #2fb36b 33%, #f39c12 66%, #e0302c 100%)'
+
+const LESS = new Color('#2f6fde')
+const SAME = new Color('#6b7280')
+const MORE = new Color('#e0302c')
+
+/** Diverging colour for a change in effort: blue = less than normal, grey = same, red = more. */
+export function changeColor(delta: number, out = new Color()): Color {
+  const t = Math.max(-1, Math.min(1, delta / 0.3))
+  return t >= 0 ? out.copy(SAME).lerp(MORE, Math.sqrt(t)) : out.copy(SAME).lerp(LESS, Math.sqrt(-t))
+}
+
+export const CHANGE_GRADIENT_CSS = 'linear-gradient(90deg, #2f6fde 0%, #6b7280 50%, #e0302c 100%)'

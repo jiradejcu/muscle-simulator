@@ -411,3 +411,46 @@ describe('hands and arms', () => {
     }
   })
 })
+
+describe('weak muscles', () => {
+  const backSquat80 = (strength: Record<string, number>) =>
+    analyse({
+      target: poseAngles(POSE_BY_ID.backSquat),
+      pose: { ...POSE_BY_ID.backSquat, contacts: poseContacts(POSE_BY_ID.backSquat) },
+      root: { pitch: 0, roll: 0 },
+      load: { point: 'upperBack', kg: 80 },
+      profile: { ...normal, muscleStrength: strength },
+      model,
+      compensate: true,
+    })
+
+  it('never asks a muscle for more than 100 % of its strength', () => {
+    for (const pose of POSES) for (const m of run(pose).sim.muscles) expect(m.activation).toBeLessThanOrEqual(1.0001)
+    for (const m of backSquat80({ 'gluteusMaximus.L': 0.05 }).sim.muscles) expect(m.activation).toBeLessThanOrEqual(1.0001)
+  })
+
+  it('shifts the work of a weak glute to its synergists on the same side', () => {
+    const normalRes = backSquat80({})
+    const weak = backSquat80({ 'gluteusMaximus.L': 0.3 })
+    expect(normalRes.baseline).toBeUndefined()
+    expect(weak.baseline).toBeDefined()
+    expect(weak.sim.muscleByKey['gluteusMaximus.L'].force).toBeLessThan(normalRes.sim.muscleByKey['gluteusMaximus.L'].force * 0.4)
+    expect(weak.sim.muscleByKey['hamstrings.L'].force).toBeGreaterThan(normalRes.sim.muscleByKey['hamstrings.L'].force + 200)
+    // the baseline is the same pose at normal strength
+    expect(weak.baseline!.muscleByKey['hamstrings.L'].force).toBeCloseTo(normalRes.sim.muscleByKey['hamstrings.L'].force, 0)
+  })
+
+  it('reports which muscles take over when one is maxed out', () => {
+    const res = backSquat80({ 'gluteusMaximus.L': 0.05 })
+    const w = res.warnings.find((x) => x.id.startsWith('maxed-'))
+    expect(w).toBeDefined()
+    expect(w!.detail).toMatch(/shifts to/)
+  })
+
+  it('warns that a joint cannot be held when its muscles are all too weak', () => {
+    const weakAll: Record<string, number> = {}
+    for (const id of ['vasti', 'rectusFemoris']) for (const s of ['L', 'R']) weakAll[`${id}.${s}`] = 0.05
+    const res = backSquat80(weakAll)
+    expect(res.warnings.some((x) => x.id.startsWith('cannot-hold-knee'))).toBe(true)
+  })
+})

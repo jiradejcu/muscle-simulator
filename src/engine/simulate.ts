@@ -73,6 +73,8 @@ export interface SimulationResult {
   jointTorque: Record<string, number>
   /** Torque carried by passive joint structures / unmodelled tissue at each DOF. */
   reserve: Record<string, number>
+  /** Torque the passive joint structures can comfortably carry at each DOF (N·m). */
+  reserveCapacity: Record<string, number>
   bodyWeight: number
 }
 
@@ -221,7 +223,7 @@ export function simulate(
   const passive = new Float64Array(nS)
   const weakness = conditionStrength(profile.conditions)
   for (let i = 0; i < nS; i++) {
-    fmax[i] = model[i].def.fmax * strengthScale * (weakness[model[i].muscle.id] ?? 1)
+    fmax[i] = model[i].def.fmax * strengthScale * (weakness[model[i].muscle.id] ?? 1) * (profile.muscleStrength?.[model[i].muscleKey] ?? 1)
     stretch[i] = normalisedStretch(model[i], lengths[i])
     passive[i] = passiveFraction(stretch[i])
   }
@@ -320,7 +322,11 @@ export function simulate(
     const def = DOFS[d]
     w[oR + d] = reserveCapacity(angles[def.key], def.min, def.max)
   }
-  const x = weightedMinNorm(A, rhs, nRows, nX, w, nonNeg)
+  // A muscle cannot produce more than its maximum: once it is at 100 % the rest of the load
+  // has to go to other muscles, or to passive joint structures (reserves) if none can help.
+  const upper = new Float64Array(nX).fill(Infinity)
+  for (let i = 0; i < nS; i++) upper[i] = fmax[i]
+  const x = weightedMinNorm(A, rhs, nRows, nX, w, nonNeg, upper)
 
   // Floor forces chosen by the optimisation
   for (let c = 0; c < nC; c++) {
@@ -401,6 +407,7 @@ export function simulate(
     imbalance,
     jointTorque,
     reserve,
+    reserveCapacity: Object.fromEntries(DOFS.map((d, i) => [d.key, w[oR + i]])),
     bodyWeight,
   }
 }

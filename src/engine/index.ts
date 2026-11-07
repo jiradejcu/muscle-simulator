@@ -22,6 +22,8 @@ export interface AnalysisInput {
 
 export interface Analysis {
   sim: SimulationResult
+  /** Same pose with every muscle at normal strength, when any muscle has been weakened. */
+  baseline?: SimulationResult
   target: Angles
   compensations: Compensation[]
   warnings: Warning[]
@@ -37,13 +39,17 @@ export function analyse(input: AnalysisInput): Analysis {
     : { angles: postured, notes: [] }
   const placement = placeBody(comp.angles, pose.contacts, pose.autoLevel, root, input.pitchHint)
   const sim = simulate(comp.angles, placement.root, model, profile, pose.contacts, load)
-  const warnings = computeWarnings({ sim, contacts: pose.contacts, loadKg: load.point ? load.kg : 0, compensations: comp.notes })
+  const weakened = Object.values(profile.muscleStrength ?? {}).some((v) => v !== 1) || CONDITIONS.some((c) => c.weakness && (profile.conditions?.[c.id] ?? 0) > 0)
+  const baseline = weakened
+    ? simulate(comp.angles, placement.root, model, { ...profile, muscleStrength: {}, conditions: {} }, pose.contacts, load)
+    : undefined
+  const warnings = computeWarnings({ sim, baseline, contacts: pose.contacts, loadKg: load.point ? load.kg : 0, compensations: comp.notes })
   for (const c of CONDITIONS) {
     const s = profile.conditions?.[c.id] ?? 0
     if (s <= 0) continue
     warnings.push({ id: `condition-${c.id}`, severity: s >= 0.6 ? 'caution' : 'info', title: c.name, detail: c.explain(s), dofs: Object.keys(c.offsets) })
   }
-  return { sim, target, compensations: comp.notes, warnings }
+  return { sim, baseline, target, compensations: comp.notes, warnings }
 }
 
 export * from './skeleton'

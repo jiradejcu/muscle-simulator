@@ -21,12 +21,13 @@ const pct = (v: number) => `${Math.round(v * 100)}%`
 
 export interface WarningContext {
   sim: SimulationResult
+  baseline?: SimulationResult
   contacts: string[]
   loadKg: number
   compensations: Compensation[]
 }
 
-export function computeWarnings({ sim, contacts, loadKg, compensations }: WarningContext): Warning[] {
+export function computeWarnings({ sim, baseline, contacts, loadKg, compensations }: WarningContext): Warning[] {
   const a = sim.angles
   const out: Warning[] = []
   const handsLoaded = loadKg > 0 || contacts.some((c) => c.startsWith('palm') || c.startsWith('knuckles') || c.startsWith('olecranon'))
@@ -164,16 +165,36 @@ export function computeWarnings({ sim, contacts, loadKg, compensations }: Warnin
       muscles: both ? [`${m.def.id}.L`, `${m.def.id}.R`] : [m.key],
     })
   }
+  // A muscle at its maximum cannot give more: say who takes over.
   const seenLoad = new Set<string>()
   for (const m of [...sim.muscles].sort((x, y) => y.activation - x.activation)) {
-    if (m.activation <= 1 || seenLoad.has(m.def.id)) continue
-    seenLoad.add(m.def.id)
+    if (m.activation < 0.985 || seenLoad.has(m.key)) continue
+    seenLoad.add(m.key)
+    const helpers = baseline ? takeovers(sim, baseline, m.key) : []
     out.push({
-      id: `overload-${m.def.id}`,
+      id: `maxed-${m.key}`,
       severity: 'warning',
-      title: `${m.def.name} overloaded`,
-      detail: `Needs about ${pct(m.activation)} of its estimated maximum strength. The pose could not be held for long${loadKg > 0 ? '; reduce the load' : ''}.`,
+      title: `${sideName(m.side)} ${lower(m.def.name)} at its maximum`,
+      detail:
+        `It is working at 100 % of its strength and cannot give more${loadKg > 0 ? '; a lighter load would help' : ''}.` +
+        (helpers.length ? ` The extra load shifts to ${helpers.join(', ')}.` : ' Other muscles and passive joint structures have to take the rest.'),
       muscles: [m.key],
+    })
+  }
+
+  // Joints where the muscles together cannot provide the torque: ligaments, capsule and bone
+  // contact take it, or in reality the pose would sag or collapse.
+  for (const d of DOFS) {
+    const r = sim.reserve[d.key]
+    const cap = sim.reserveCapacity[d.key]
+    if (Math.abs(r) < Math.max(20, cap * 1.5)) continue
+    const joint = JOINT_BY_ID[d.joint]
+    out.push({
+      id: `cannot-hold-${d.key}`,
+      severity: 'warning',
+      title: `${joint.label}: muscles cannot hold this`,
+      detail: `About ${r0(Math.abs(r))} N·m of ${lower(d.label)} torque is more than the muscles here can provide. Passive structures (ligaments, joint capsule) would be strained, or the joint would give way.`,
+      dofs: [d.key],
     })
   }
 
@@ -207,6 +228,19 @@ function partOf(m: SimulationResult['muscles'][number]): string {
   const rep = m.strands.reduce((a, b) => (b.stretch > a.stretch ? b : a))
   const name = m.strands.length > 1 ? `${m.def.strands[m.strands.indexOf(rep)].name}, ` : ''
   return ` (${name}${pct(rep.lengthRatio)} of resting length)`
+}
+
+const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1)
+
+/** Muscles that work noticeably harder than they would at normal strength. */
+export function takeovers(sim: SimulationResult, baseline: SimulationResult, exclude?: string): string[] {
+  return sim.muscles
+    .filter((m) => m.key !== exclude)
+    .map((m) => ({ m, d: m.activation - (baseline.muscleByKey[m.key]?.activation ?? 0) }))
+    .filter((x) => x.d > 0.04)
+    .sort((a, b) => b.d - a.d)
+    .slice(0, 4)
+    .map((x) => `${x.m.side === 'L' ? 'left' : 'right'} ${lower(x.m.def.name)} (+${r0(x.d * 100)} %)`)
 }
 
 /** Angle of the trunk (pelvis to neck) from vertical, degrees. */
