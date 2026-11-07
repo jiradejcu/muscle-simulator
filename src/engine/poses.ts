@@ -1,0 +1,213 @@
+import { expandSides, neutralAngles, clampAngles, type Angles } from './skeleton'
+
+export type LoadPoint = 'hands' | 'upperBack'
+
+export interface PoseDef {
+  id: string
+  name: string
+  category: 'Standing' | 'Floor' | 'Stretch'
+  description: string
+  /** Joint angles in degrees. "?" in a key sets both sides. Unlisted DOFs are 0. */
+  angles: Record<string, number>
+  /** Landmarks touching the floor ("?" = both sides). */
+  contacts: string[]
+  /** Tilt the whole body so the contacts sit level on the floor. */
+  autoLevel: boolean
+  /** Whole-body orientation used when autoLevel is false. */
+  root?: { pitch: number; roll: number }
+  /** Default external load. */
+  load?: { point: LoadPoint; kg: number }
+  /** Standing pose: the centre of mass should stay over the feet. */
+  balance?: boolean
+  cues: string[]
+}
+
+const feet = ['heel?', 'ball?']
+
+export const POSES: PoseDef[] = [
+  {
+    id: 'standing', name: 'Standing', category: 'Standing', autoLevel: true, balance: true, contacts: feet,
+    description: 'Relaxed upright standing, the reference posture for every muscle\'s resting length.',
+    angles: {},
+    cues: ['Weight spread over the whole foot', 'Ribs stacked over the pelvis'],
+  },
+  {
+    id: 'squat', name: 'Bodyweight squat', category: 'Standing', autoLevel: true, balance: true, contacts: feet,
+    description: 'Parallel squat with the arms reaching forward for balance.',
+    angles: {
+      'ankle?.dorsiflexion': 30, 'knee?.flexion': 115, 'hip?.flexion': 112, 'hip?.abduction': 14, 'hip?.rotation': -14,
+      'lumbar.flexion': 5, 'thoracic.flexion': 5, 'neck.flexion': -15,
+      'shoulder?.elevation': 85, 'shoulder?.plane': 90,
+    },
+    cues: ['Knees track over the toes', 'Sit between the heels, not behind them', 'Keep the lower back neutral'],
+  },
+  {
+    id: 'deepSquat', name: 'Deep squat', category: 'Standing', autoLevel: true, balance: true, contacts: feet,
+    description: 'Full-depth squat. Needs good ankle and hip mobility.',
+    angles: {
+      'ankle?.dorsiflexion': 37, 'knee?.flexion': 145, 'hip?.flexion': 122, 'hip?.abduction': 20, 'hip?.rotation': -20,
+      'lumbar.flexion': 15, 'thoracic.flexion': 10, 'neck.flexion': -20,
+      'shoulder?.elevation': 80, 'shoulder?.plane': 90,
+    },
+    cues: ['Heels stay down', 'Let the knees travel forward', 'A little rounding at the very bottom is normal'],
+  },
+  {
+    id: 'squatValgus', name: 'Squat: knees caving in', category: 'Standing', autoLevel: true, balance: true, contacts: feet,
+    description: 'A common fault: the knees collapse inward because the hips rotate in and drift together.',
+    angles: {
+      'ankle?.dorsiflexion': 28, 'ankle?.inversion': -12, 'knee?.flexion': 110, 'hip?.flexion': 108, 'hip?.abduction': -6, 'hip?.rotation': 22,
+      'lumbar.flexion': 8, 'thoracic.flexion': 8, 'neck.flexion': -15,
+      'shoulder?.elevation': 85, 'shoulder?.plane': 90,
+    },
+    cues: ['Push the knees out over the little toes', 'Strengthen gluteus medius'],
+  },
+  {
+    id: 'backSquat', name: 'Barbell back squat', category: 'Standing', autoLevel: true, balance: true, contacts: feet,
+    load: { point: 'upperBack', kg: 40 },
+    description: 'Parallel squat with a bar on the upper back.',
+    angles: {
+      'ankle?.dorsiflexion': 28, 'knee?.flexion': 112, 'hip?.flexion': 118, 'hip?.abduction': 14, 'hip?.rotation': -14,
+      'lumbar.flexion': 3, 'thoracic.flexion': 0, 'neck.flexion': -10,
+      'shoulder?.elevation': 80, 'shoulder?.plane': -20, 'shoulder?.rotation': -70, 'elbow?.flexion': 110,
+      'scapula?.protraction': -15,
+    },
+    cues: ['Brace the trunk before descending', 'Bar over the middle of the foot'],
+  },
+  {
+    id: 'deadlift', name: 'Deadlift (start)', category: 'Standing', autoLevel: true, balance: true, contacts: feet,
+    load: { point: 'hands', kg: 60 },
+    description: 'Lift-off position with a neutral spine: the hips hinge and the hamstrings and glutes load up.',
+    angles: {
+      'ankle?.dorsiflexion': 15, 'knee?.flexion': 65, 'hip?.flexion': 105, 'hip?.abduction': 5, 'hip?.rotation': -5,
+      'lumbar.flexion': 0, 'thoracic.flexion': 8, 'neck.flexion': -20,
+      'shoulder?.elevation': 62, 'shoulder?.plane': 90, 'scapula?.protraction': 5,
+    },
+    cues: ['Bar close to the shins', 'Chest proud, back flat', 'Push the floor away'],
+  },
+  {
+    id: 'deadliftRounded', name: 'Deadlift: rounded back', category: 'Standing', autoLevel: true, balance: true, contacts: feet,
+    load: { point: 'hands', kg: 60 },
+    description: 'The same lift with the lower back rounding instead of the hips hinging.',
+    angles: {
+      'ankle?.dorsiflexion': 12, 'knee?.flexion': 45, 'hip?.flexion': 70, 'lumbar.flexion': 40, 'thoracic.flexion': 30, 'neck.flexion': -30,
+      'shoulder?.elevation': 107, 'shoulder?.plane': 90, 'scapula?.protraction': 20,
+    },
+    cues: ['Hinge from the hips', 'Bend the knees a little more', 'Lower the weight if you cannot keep the back flat'],
+  },
+  {
+    id: 'overheadPress', name: 'Overhead press (lockout)', category: 'Standing', autoLevel: true, balance: true, contacts: feet,
+    load: { point: 'hands', kg: 30 },
+    description: 'Bar locked out overhead. Tight lats or chest force the lower back to arch.',
+    angles: {
+      'shoulder?.elevation': 168, 'shoulder?.plane': 75, 'shoulder?.rotation': -10, 'elbow?.flexion': 5, 'wrist?.flexion': -20,
+      'scapula?.elevation': 15, 'neck.flexion': 5,
+    },
+    cues: ['Squeeze the glutes so the back does not arch', 'Head through the window at the top'],
+  },
+  {
+    id: 'lunge', name: 'Low lunge (knee down)', category: 'Stretch', autoLevel: true, balance: false, contacts: ['heelL', 'ballL', 'tibialTuberosityR', 'toeTipR'],
+    description: 'Left leg forward, right knee resting on the floor: a classic hip-flexor stretch for the back leg.',
+    angles: {
+      'hipL.flexion': 92, 'kneeL.flexion': 92, 'ankleL.dorsiflexion': -4.5,
+      'hipR.flexion': -12, 'kneeR.flexion': 89, 'ankleR.dorsiflexion': -45,
+      'lumbar.flexion': 0, 'thoracic.flexion': 8, 'shoulder?.elevation': 10,
+    },
+    cues: ['Front shin roughly vertical', 'Tuck the pelvis under to stretch the back hip flexors'],
+  },
+  {
+    id: 'pushupTop', name: 'Push-up (top) / high plank', category: 'Floor', autoLevel: true, contacts: ['palm?', 'toeTip?'],
+    description: 'Arms straight, body in one line from head to heels.',
+    angles: {
+      'shoulder?.elevation': 78, 'shoulder?.plane': 90, 'elbow?.flexion': 0, 'wrist?.flexion': -78,
+      'ankle?.dorsiflexion': 5, 'neck.flexion': -10, 'scapula?.protraction': 10,
+    },
+    cues: ['Brace the abs so the hips do not sag', 'Push the floor away to spread the shoulder blades'],
+  },
+  {
+    id: 'pushupBottom', name: 'Push-up (bottom)', category: 'Floor', autoLevel: true, contacts: ['palm?', 'toeTip?'],
+    description: 'Chest just above the floor, elbows at about 45° from the body.',
+    angles: {
+      'shoulder?.elevation': 50, 'shoulder?.plane': 37, 'shoulder?.rotation': 33, 'elbow?.flexion': 74, 'wrist?.flexion': -80,
+      'ankle?.dorsiflexion': 5, 'neck.flexion': -10, 'scapula?.protraction': -25,
+    },
+    cues: ['Elbows about 45° from the body', 'Lower the body as one unit'],
+  },
+  {
+    id: 'plank', name: 'Forearm plank', category: 'Floor', autoLevel: true, contacts: ['olecranon?', 'knuckles?', 'toeTip?'],
+    description: 'Body held straight on the forearms and toes.',
+    angles: {
+      'shoulder?.elevation': 89, 'shoulder?.plane': 90, 'shoulder?.rotation': 35, 'elbow?.flexion': 80.5,
+      'ankle?.dorsiflexion': 5, 'neck.flexion': -5,
+    },
+    cues: ['Squeeze the glutes and brace', 'Do not let the lower back sag'],
+  },
+  {
+    id: 'gluteBridge', name: 'Glute bridge', category: 'Floor', autoLevel: true, contacts: ['upperBack', 'heel?', 'ball?'],
+    description: 'Lying on the back with the hips lifted in line with the thighs.',
+    angles: {
+      'hip?.flexion': 10, 'knee?.flexion': 100, 'ankle?.dorsiflexion': -19, 'hip?.abduction': 6,
+      'shoulder?.elevation': 15, 'shoulder?.plane': -90, 'neck.flexion': 25,
+    },
+    cues: ['Drive through the heels', 'Ribs down: lift with the glutes, not the lower back'],
+  },
+  {
+    id: 'downwardDog', name: 'Downward dog', category: 'Stretch', autoLevel: true, contacts: ['palm?', 'ball?'],
+    description: 'Yoga inverted V: stretches hamstrings, calves and shoulders.',
+    angles: {
+      'hip?.flexion': 112, 'knee?.flexion': 0, 'ankle?.dorsiflexion': 11.5, 'scapula?.elevation': 18.5,
+      'shoulder?.elevation': 122.5, 'shoulder?.plane': 90, 'shoulder?.rotation': -15, 'elbow?.flexion': 0, 'wrist?.flexion': -80,
+      'lumbar.flexion': 0, 'thoracic.flexion': -5, 'neck.flexion': 5,
+    },
+    cues: ['Bend the knees if the back rounds', 'Press the chest toward the thighs'],
+  },
+  {
+    id: 'forwardFold', name: 'Standing forward fold', category: 'Stretch', autoLevel: true, balance: true, contacts: feet,
+    description: 'Fold forward with straight knees. Hamstring tightness shows up as a rounded back.',
+    angles: {
+      'hip?.flexion': 105, 'knee?.flexion': 0, 'ankle?.dorsiflexion': -6, 'lumbar.flexion': 35, 'thoracic.flexion': 30, 'neck.flexion': 25,
+      'shoulder?.elevation': 130, 'shoulder?.plane': 90,
+    },
+    cues: ['Hinge at the hips first', 'Soft knees are fine'],
+  },
+  {
+    id: 'seatedFold', name: 'Seated forward bend', category: 'Stretch', autoLevel: true, contacts: ['ischialTuberosity?', 'heel?'],
+    description: 'Sitting with straight legs reaching for the toes.',
+    angles: {
+      'hip?.flexion': 95, 'knee?.flexion': 0, 'ankle?.dorsiflexion': 5, 'lumbar.flexion': 35, 'thoracic.flexion': 30, 'neck.flexion': 20,
+      'shoulder?.elevation': 5, 'shoulder?.plane': 90,
+    },
+    cues: ['Sit tall on the sit bones first', 'Reach with the chest, not the head'],
+  },
+  {
+    id: 'quadStretch', name: 'Standing quad stretch', category: 'Stretch', autoLevel: true, balance: true, contacts: ['heelR', 'ballR'],
+    description: 'Standing on the right leg, the left heel pulled toward the buttock.',
+    angles: {
+      'kneeL.flexion': 140, 'hipL.flexion': -8, 'ankleL.dorsiflexion': -30, 'hipR.abduction': -8, 'lumbar.lateral': 16, 'hipL.abduction': -1,
+      'shoulderL.elevation': 35, 'shoulderL.plane': -90, 'elbowL.flexion': 40,
+      'shoulderR.elevation': 90, 'shoulderR.plane': 20,
+    },
+    cues: ['Knees side by side', 'Tuck the pelvis to feel it at the front of the hip'],
+  },
+  {
+    id: 'cobra', name: 'Cobra (back bend)', category: 'Stretch', autoLevel: true, contacts: ['pubicSymphysis', 'toeTip?', 'palm?'],
+    description: 'Lying face down and pressing the chest up: lumbar extension.',
+    angles: {
+      'lumbar.flexion': -30, 'thoracic.flexion': -22, 'neck.flexion': -20,
+      'hip?.flexion': -25, 'ankle?.dorsiflexion': -50,
+      'shoulder?.elevation': 0, 'shoulder?.plane': 70, 'elbow?.flexion': -5, 'wrist?.flexion': -80,
+    },
+    cues: ['Keep the hips down', 'Stop where the lower back feels comfortable'],
+  },
+]
+
+export const POSE_BY_ID: Record<string, PoseDef> = Object.fromEntries(POSES.map((p) => [p.id, p]))
+
+export function poseAngles(pose: PoseDef): Angles {
+  const a = neutralAngles()
+  for (const [k, v] of Object.entries(pose.angles)) for (const key of expandSides(k)) a[key] = v
+  return clampAngles(a)
+}
+
+export function poseContacts(pose: PoseDef): string[] {
+  return pose.contacts.flatMap((c) => expandSides(c))
+}
