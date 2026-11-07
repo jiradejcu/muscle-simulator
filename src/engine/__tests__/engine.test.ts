@@ -301,6 +301,14 @@ describe('postural conditions', () => {
     expect(res.warnings.some((w) => w.id === 'condition-scoliosis')).toBe(true)
   })
 
+  it('left scoliosis is the mirror image of right scoliosis', () => {
+    const r = run(POSE_BY_ID.standing, withCond({ scoliosis: 1 })).sim
+    const l = run(POSE_BY_ID.standing, withCond({ scoliosisLeft: 1 })).sim
+    for (const k of ['thoracic.lateral', 'thoracic.rotation', 'lumbar.lateral', 'neck.lateral']) expect(l.angles[k]).toBeCloseTo(-r.angles[k], 6)
+    expect(l.muscleByKey['quadratusLumborum.L'].lengthRatio).toBeCloseTo(r.muscleByKey['quadratusLumborum.R'].lengthRatio, 3)
+    expect(l.angles['scapulaL.elevation']).toBeGreaterThan(l.angles['scapulaR.elevation'])
+  })
+
   it('scales posture with severity and leaves the pose alone at 0', () => {
     const half = run(POSE_BY_ID.standing, withCond({ kyphosis: 0.5 })).sim.angles['thoracic.flexion']
     const full = run(POSE_BY_ID.standing, withCond({ kyphosis: 1 })).sim.angles['thoracic.flexion']

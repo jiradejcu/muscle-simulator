@@ -11,6 +11,7 @@ import { clampAngle, type Angles } from './skeleton'
  */
 export type ConditionId =
   | 'scoliosis'
+  | 'scoliosisLeft'
   | 'kyphosis'
   | 'lordosis'
   | 'flatBack'
@@ -40,16 +41,38 @@ export interface ConditionDef {
 
 const r0 = (v: number) => Math.round(v)
 
-export const CONDITIONS: ConditionDef[] = [
-  {
-    id: 'scoliosis',
-    name: 'Scoliosis (right thoracic curve)',
-    summary: 'Sideways S-curve of the spine with twisting: upper back bends right, lower back compensates left.',
+/**
+ * Scoliosis with the main (thoracic) curve convex to the right - the most common pattern,
+ * about 85-90 % of adolescent idiopathic cases - or its mirror image to the left.
+ */
+function scoliosis(convex: 'L' | 'R'): ConditionDef {
+  const k = convex === 'R' ? 1 : -1 // flips side-bend and rotation
+  const side = convex === 'R' ? 'right' : 'left'
+  const other = convex === 'R' ? 'left' : 'right'
+  const high = convex === 'R' ? 'R' : 'L'
+  const low = convex === 'R' ? 'L' : 'R'
+  return {
+    id: convex === 'R' ? 'scoliosis' : 'scoliosisLeft',
+    name: `Scoliosis (${side} thoracic curve)`,
+    summary: `Sideways S-curve of the spine with twisting: the spine bows to the ${side}, the upper back angles back to the ${other}.${convex === 'R' ? ' The most common pattern.' : ' Less common; mirror image of the right curve.'}`,
     scale: 'about 45° Cobb angle when severe',
-    offsets: { 'lumbar.lateral': -16, 'lumbar.rotation': -4, 'thoracic.lateral': 24, 'thoracic.rotation': -14, 'neck.lateral': -8, 'scapulaR.elevation': 6, 'scapulaL.elevation': -3 },
+    offsets: {
+      'lumbar.lateral': -16 * k,
+      'lumbar.rotation': -4 * k,
+      'thoracic.lateral': 24 * k,
+      'thoracic.rotation': -14 * k,
+      'neck.lateral': -8 * k,
+      [`scapula${high}.elevation`]: 6,
+      [`scapula${low}.elevation`]: -3,
+    },
     explain: (s) =>
-      `Scoliosis (~${r0(45 * s)}° Cobb): the spine bows to the right around the lower ribs - the lower back leans ${r0(16 * s)}° right, the upper back angles ${r0(24 * s)}° back to the left and twists to the right (rib hump), and the neck tilts to level the head. Trunk muscles on the convex (right) side are held stretched; those on the concave (left) side are shortened and the side-benders on both sides work unevenly. The right shoulder sits higher.`,
-  },
+      `Scoliosis (~${r0(45 * s)}° Cobb): the spine bows to the ${side} around the lower ribs - the lower back leans ${r0(16 * s)}° ${side}, the upper back angles ${r0(24 * s)}° back to the ${other} and twists to the ${side} (rib hump), and the neck tilts to level the head. Trunk muscles on the convex (${side}) side are held stretched; those on the concave (${other}) side are shortened and the side-benders on both sides work unevenly. The ${side} shoulder sits higher.`,
+  }
+}
+
+export const CONDITIONS: ConditionDef[] = [
+  scoliosis('R'),
+  scoliosis('L'),
   {
     id: 'kyphosis',
     name: 'Hyperkyphosis (rounded upper back)',
