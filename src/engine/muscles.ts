@@ -34,6 +34,8 @@ const kneeBackWrap: PathNode = { centre: 'kneeWrapCentre?', radius: 0.036, keep:
 const hipFrontWrap: PathNode = { centre: 'hipWrapCentre?', radius: 0.033, keep: [0, 0.3, 1] }
 const kneeWrap: PathNode = { centre: 'kneeWrapCentre?', radius: 0.05, keep: [0, 0, 1] }
 const elbowWrap: PathNode = { centre: 'elbowWrapCentre?', radius: 0.024, keep: [0, 0, -1] }
+/** Keeps the elbow flexors in front of the joint even when the elbow is fully bent. */
+const elbowFrontWrap: PathNode = { centre: 'elbowWrapCentre?', radius: 0.022, keep: [0, 0, 1] }
 const headWrap = (keep: [number, number, number], axis: [number, number, number]): PathNode => ({ centre: 'shoulderWrapCentre?', radius: 0.03, keep, axis })
 
 export const MUSCLES: MuscleDef[] = [
@@ -262,23 +264,23 @@ export const MUSCLES: MuscleDef[] = [
     description: 'Two-headed muscle on the front of the upper arm.',
     actions: 'Bends the elbow, turns the palm up and helps raise the arm forward.',
     strands: [
-      { name: 'long head', path: ['supraglenoid?', 'bicepsVia?', 'bicepsDistalVia?', 'radialTuberosity?'], fmax: 320, radius: 0.019, tendon: [0.22, 0.1] },
-      { name: 'short head', path: ['coracoid?', 'bicepsVia?', 'bicepsDistalVia?', 'radialTuberosity?'], fmax: 300, radius: 0.019, tendon: [0.12, 0.1] },
+      { name: 'long head', path: ['supraglenoid?', 'bicepsVia?', elbowFrontWrap, 'radialTuberosity?'], fmax: 320, radius: 0.019, tendon: [0.22, 0.1] },
+      { name: 'short head', path: ['coracoid?', 'bicepsVia?', elbowFrontWrap, 'radialTuberosity?'], fmax: 300, radius: 0.019, tendon: [0.12, 0.1] },
     ],
   },
   {
     id: 'brachialis', name: 'Brachialis', region: 'Arms', layer: 'deep', test: 'elbowExtension',
     description: 'Strong elbow flexor under the biceps.',
     actions: 'Bends the elbow whatever the hand position.',
-    strands: [{ name: 'brachialis', path: ['brachialisOrigin?', 'bicepsDistalVia?', 'ulnarTuberosity?'], fmax: 900, radius: 0.018, tendon: [0.03, 0.08] }],
+    strands: [{ name: 'brachialis', path: ['brachialisOrigin?', elbowFrontWrap, 'ulnarTuberosity?'], fmax: 900, radius: 0.018, tendon: [0.03, 0.08] }],
   },
   {
     id: 'tricepsBrachii', name: 'Triceps brachii', region: 'Arms', layer: 'superficial', test: 'overheadElbow',
     description: 'Three-headed muscle on the back of the upper arm.',
     actions: 'Straightens the elbow (pressing, push-ups); the long head also pulls the arm back.',
     strands: [
-      { name: 'long head', path: ['infraglenoid?', 'tricepsVia?', elbowWrap, 'olecranon?'], fmax: 600, radius: 0.021, tendon: [0.08, 0.16] },
-      { name: 'lateral head', path: ['tricepsLatOrigin?', 'tricepsVia?', elbowWrap, 'olecranon?'], fmax: 700, radius: 0.021, tendon: [0.03, 0.18] },
+      { name: 'long head', path: ['infraglenoid?', 'tricepsVia?', elbowWrap, 'olecranon?'], fmax: 800, radius: 0.022, tendon: [0.08, 0.16] },
+      { name: 'lateral & medial heads', path: ['tricepsLatOrigin?', 'tricepsVia?', elbowWrap, 'olecranon?'], fmax: 1250, radius: 0.024, tendon: [0.03, 0.18] },
     ],
   },
   {

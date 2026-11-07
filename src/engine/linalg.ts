@@ -44,7 +44,7 @@ export function weightedMinNorm(
   w: Float64Array,
   nonNeg: Uint8Array,
   ridge = 1e-9,
-  maxIter = 80,
+  maxIter = 400,
 ): Float64Array {
   const active = new Uint8Array(n).fill(1)
   const W = new Float64Array(n)

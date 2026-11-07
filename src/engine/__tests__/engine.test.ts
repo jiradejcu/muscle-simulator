@@ -34,7 +34,7 @@ function run(pose: PoseDef, profile: Profile = normal, compensate = true, overri
     target: { ...poseAngles(pose), ...override } as Angles,
     pose: { ...pose, contacts: poseContacts(pose) },
     root: pose.root ?? { pitch: 0, roll: 0 },
-    load: { point: pose.load?.point ?? null, kg: pose.load?.kg ?? 0 },
+    load: { point: pose.load?.point ?? null, kg: pose.load?.kg ?? 0, holds: pose.holds },
     profile,
     model: m,
     compensate,
@@ -345,5 +345,69 @@ describe('postural conditions', () => {
 
   it('knee hyperextension condition raises the hyperextension warning', () => {
     expect(run(POSE_BY_ID.standing, withCond({ kneeHyperextension: 1 })).warnings.some((w) => w.id === 'knee-hyper-L')).toBe(true)
+  })
+})
+
+describe('hands and arms', () => {
+  // Palm faces the floor and the fingers point toward the head in hand-on-floor poses.
+  for (const id of ['pushupTop', 'pushupBottom', 'downwardDog', 'cobra', 'plank']) {
+    it(`${id}: palms down, fingers forward`, () => {
+      const res = run(POSE_BY_ID[id])
+      const P = res.sim.pose
+      const head = new Vector3(0, 1, 0).applyQuaternion(P.thorax.q).setY(0).normalize()
+      for (const s of ['L', 'R'] as const) {
+        const wrist = P[`hand${s}`].t
+        const fingers = transformPoint(P, `hand${s}`, LANDMARKS[`fingerTip${s}`].p).sub(wrist).normalize()
+        const palm = new Vector3(0, 0, 1).applyQuaternion(P[`hand${s}`].q)
+        expect(palm.y).toBeLessThan(-0.85)
+        expect(fingers.dot(head)).toBeGreaterThan(0.8)
+      }
+    })
+  }
+
+  it('uses an overhand grip in the deadlift', () => {
+    const P = run(POSE_BY_ID.deadlift).sim.pose
+    expect(new Vector3(0, 0, 1).applyQuaternion(P.handL.q).z).toBeLessThan(-0.8) // palm faces back
+  })
+
+  it('makes the triceps, not the elbow flexors, hold the bottom of a push-up', () => {
+    const sim = run(POSE_BY_ID.pushupBottom).sim
+    expect(sim.jointTorque['elbowL.flexion']).toBeLessThan(-20) // extension needed
+    expect(sim.muscleByKey['tricepsBrachii.L'].activation).toBeGreaterThan(0.4)
+    expect(sim.muscleByKey['bicepsBrachii.L'].activation + sim.muscleByKey['brachialis.L'].activation).toBeLessThan(0.15)
+    expect(sim.muscleByKey['pectoralisMajor.L'].activation).toBeGreaterThan(0.15)
+  })
+
+  it('keeps the elbow flexors flexors through the functional range', () => {
+    // (at the very end of elbow flexion the moment arm falls to about zero, as in real arms)
+    for (const key of ['bicepsBrachii.L.0', 'brachialis.L.0']) {
+      let prev = Infinity
+      for (let e = 0; e <= 130; e += 10) {
+        const len = strandLength(key, { ...neutralAngles(), 'elbowL.flexion': e })
+        expect(len).toBeLessThan(prev + 0.002) // never lengthens noticeably as the elbow bends
+        prev = len
+      }
+    }
+  })
+
+  it('lets the hand hold the foot in the standing quad stretch', () => {
+    const sim = run(POSE_BY_ID.quadStretch).sim
+    expect(sim.muscleByKey['tensorFasciaeLatae.L'].activation).toBeLessThan(0.5)
+  })
+
+  it('balances the low lunge between front foot and back knee without overload', () => {
+    const sim = run(POSE_BY_ID.lunge).sim
+    const g = sim.forces.filter((f) => f.kind === 'ground')
+    const front = g.filter((f) => f.label.endsWith('L')).reduce((a, f) => a + f.force.y, 0)
+    expect(front / sim.bodyWeight).toBeGreaterThan(0.35)
+    for (const m of sim.muscles) expect(m.activation).toBeLessThan(1)
+  })
+
+  it('uses only moderate friction at the floor', () => {
+    for (const pose of POSES) {
+      for (const f of run(pose).sim.forces.filter((x) => x.kind === 'ground')) {
+        expect(Math.hypot(f.force.x, f.force.z)).toBeLessThan(0.6 * Math.max(f.force.y, 1) + 15)
+      }
+    }
   })
 })

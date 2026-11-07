@@ -19,6 +19,8 @@ export interface PoseDef {
   load?: { point: LoadPoint; kg: number }
   /** Standing pose: the centre of mass should stay over the feet. */
   balance?: boolean
+  /** Hands holding feet (the arm supports the lower leg). */
+  holds?: { hand: 'L' | 'R'; foot: 'L' | 'R' }[]
   cues: string[]
 }
 
@@ -40,6 +42,7 @@ export const POSES: PoseDef[] = [
       'ankle?.dorsiflexion': 30, 'knee?.flexion': 115, 'hip?.flexion': 112, 'hip?.abduction': 14, 'hip?.rotation': -14,
       'lumbar.flexion': 5, 'thoracic.flexion': 5, 'neck.flexion': -15,
       'shoulder?.elevation': 85, 'shoulder?.plane': 90,
+      'wrist?.pronation': 90, 'wrist?.flexion': 0, 'shoulder?.rotation': 0,
     },
     cues: ['Knees track over the toes', 'Sit between the heels, not behind them', 'Keep the lower back neutral'],
   },
@@ -50,6 +53,7 @@ export const POSES: PoseDef[] = [
       'ankle?.dorsiflexion': 37, 'knee?.flexion': 145, 'hip?.flexion': 122, 'hip?.abduction': 20, 'hip?.rotation': -20,
       'lumbar.flexion': 15, 'thoracic.flexion': 10, 'neck.flexion': -20,
       'shoulder?.elevation': 80, 'shoulder?.plane': 90,
+      'wrist?.pronation': 90, 'wrist?.flexion': 0, 'shoulder?.rotation': 0,
     },
     cues: ['Heels stay down', 'Let the knees travel forward', 'A little rounding at the very bottom is normal'],
   },
@@ -60,6 +64,7 @@ export const POSES: PoseDef[] = [
       'ankle?.dorsiflexion': 28, 'ankle?.inversion': -12, 'knee?.flexion': 110, 'hip?.flexion': 108, 'hip?.abduction': -6, 'hip?.rotation': 22,
       'lumbar.flexion': 8, 'thoracic.flexion': 8, 'neck.flexion': -15,
       'shoulder?.elevation': 85, 'shoulder?.plane': 90,
+      'wrist?.pronation': 90, 'wrist?.flexion': 0, 'shoulder?.rotation': 0,
     },
     cues: ['Push the knees out over the little toes', 'Strengthen gluteus medius'],
   },
@@ -70,8 +75,9 @@ export const POSES: PoseDef[] = [
     angles: {
       'ankle?.dorsiflexion': 28, 'knee?.flexion': 112, 'hip?.flexion': 118, 'hip?.abduction': 14, 'hip?.rotation': -14,
       'lumbar.flexion': 3, 'thoracic.flexion': 0, 'neck.flexion': -10,
-      'shoulder?.elevation': 80, 'shoulder?.plane': -20, 'shoulder?.rotation': -70, 'elbow?.flexion': 110,
+      'shoulder?.elevation': 40, 'shoulder?.plane': 30, 'elbow?.flexion': 150,
       'scapula?.protraction': -15,
+      'wrist?.pronation': 80, 'wrist?.flexion': 0, 'shoulder?.rotation': -90,
     },
     cues: ['Brace the trunk before descending', 'Bar over the middle of the foot'],
   },
@@ -83,6 +89,7 @@ export const POSES: PoseDef[] = [
       'ankle?.dorsiflexion': 15, 'knee?.flexion': 65, 'hip?.flexion': 105, 'hip?.abduction': 5, 'hip?.rotation': -5,
       'lumbar.flexion': 0, 'thoracic.flexion': 8, 'neck.flexion': -20,
       'shoulder?.elevation': 62, 'shoulder?.plane': 90, 'scapula?.protraction': 5,
+      'wrist?.pronation': 170, 'wrist?.flexion': 0, 'shoulder?.rotation': 0,
     },
     cues: ['Bar close to the shins', 'Chest proud, back flat', 'Push the floor away'],
   },
@@ -93,6 +100,7 @@ export const POSES: PoseDef[] = [
     angles: {
       'ankle?.dorsiflexion': 12, 'knee?.flexion': 45, 'hip?.flexion': 70, 'lumbar.flexion': 40, 'thoracic.flexion': 30, 'neck.flexion': -30,
       'shoulder?.elevation': 107, 'shoulder?.plane': 90, 'scapula?.protraction': 20,
+      'wrist?.pronation': 170, 'wrist?.flexion': 0, 'shoulder?.rotation': 10,
     },
     cues: ['Hinge from the hips', 'Bend the knees a little more', 'Lower the weight if you cannot keep the back flat'],
   },
@@ -101,8 +109,9 @@ export const POSES: PoseDef[] = [
     load: { point: 'hands', kg: 30 },
     description: 'Bar locked out overhead. Tight lats or chest force the lower back to arch.',
     angles: {
-      'shoulder?.elevation': 168, 'shoulder?.plane': 75, 'shoulder?.rotation': -10, 'elbow?.flexion': 5, 'wrist?.flexion': -20,
+      'shoulder?.elevation': 168, 'shoulder?.plane': 75, 'elbow?.flexion': 5,
       'scapula?.elevation': 15, 'neck.flexion': 5,
+      'wrist?.pronation': 165, 'wrist?.flexion': -20, 'shoulder?.rotation': -10,
     },
     cues: ['Squeeze the glutes so the back does not arch', 'Head through the window at the top'],
   },
@@ -110,9 +119,9 @@ export const POSES: PoseDef[] = [
     id: 'lunge', name: 'Low lunge (knee down)', category: 'Stretch', autoLevel: true, balance: false, contacts: ['heelL', 'ballL', 'tibialTuberosityR', 'toeTipR'],
     description: 'Left leg forward, right knee resting on the floor: a classic hip-flexor stretch for the back leg.',
     angles: {
-      'hipL.flexion': 92, 'kneeL.flexion': 92, 'ankleL.dorsiflexion': -4.5,
+      'hipL.flexion': 92, 'kneeL.flexion': 98, 'ankleL.dorsiflexion': 1.5,
       'hipR.flexion': -12, 'kneeR.flexion': 89, 'ankleR.dorsiflexion': -45,
-      'lumbar.flexion': 0, 'thoracic.flexion': 8, 'shoulder?.elevation': 10,
+      'lumbar.flexion': 12, 'thoracic.flexion': 20, 'shoulder?.elevation': 10,
     },
     cues: ['Front shin roughly vertical', 'Tuck the pelvis under to stretch the back hip flexors'],
   },
@@ -120,8 +129,9 @@ export const POSES: PoseDef[] = [
     id: 'pushupTop', name: 'Push-up (top) / high plank', category: 'Floor', autoLevel: true, contacts: ['palm?', 'toeTip?'],
     description: 'Arms straight, body in one line from head to heels.',
     angles: {
-      'shoulder?.elevation': 78, 'shoulder?.plane': 90, 'elbow?.flexion': 0, 'wrist?.flexion': -78,
+      'shoulder?.elevation': 78, 'shoulder?.plane': 90, 'elbow?.flexion': 0,
       'ankle?.dorsiflexion': 5, 'neck.flexion': -10, 'scapula?.protraction': 10,
+      'wrist?.pronation': 170, 'wrist?.flexion': -80, 'shoulder?.rotation': 0,
     },
     cues: ['Brace the abs so the hips do not sag', 'Push the floor away to spread the shoulder blades'],
   },
@@ -129,17 +139,19 @@ export const POSES: PoseDef[] = [
     id: 'pushupBottom', name: 'Push-up (bottom)', category: 'Floor', autoLevel: true, contacts: ['palm?', 'toeTip?'],
     description: 'Chest just above the floor, elbows at about 45° from the body.',
     angles: {
-      'shoulder?.elevation': 50, 'shoulder?.plane': 37, 'shoulder?.rotation': 33, 'elbow?.flexion': 74, 'wrist?.flexion': -80,
+      'shoulder?.elevation': 40, 'shoulder?.plane': 35, 'elbow?.flexion': 110,
       'ankle?.dorsiflexion': 5, 'neck.flexion': -10, 'scapula?.protraction': -25,
+      'wrist?.pronation': 130, 'wrist?.flexion': -80, 'shoulder?.rotation': 20,
     },
     cues: ['Elbows about 45° from the body', 'Lower the body as one unit'],
   },
   {
-    id: 'plank', name: 'Forearm plank', category: 'Floor', autoLevel: true, contacts: ['olecranon?', 'knuckles?', 'toeTip?'],
-    description: 'Body held straight on the forearms and toes.',
+    id: 'plank', name: 'Forearm plank', category: 'Floor', autoLevel: true, contacts: ['olecranon?', 'toeTip?'],
+    description: 'Body held straight on the forearms and toes; the weight goes through the elbows.',
     angles: {
-      'shoulder?.elevation': 89, 'shoulder?.plane': 90, 'shoulder?.rotation': 35, 'elbow?.flexion': 80.5,
+      'shoulder?.elevation': 89, 'shoulder?.plane': 90, 'elbow?.flexion': 80.5,
       'ankle?.dorsiflexion': 5, 'neck.flexion': -5,
+      'wrist?.pronation': 170, 'wrist?.flexion': -5, 'shoulder?.rotation': 15,
     },
     cues: ['Squeeze the glutes and brace', 'Do not let the lower back sag'],
   },
@@ -147,7 +159,7 @@ export const POSES: PoseDef[] = [
     id: 'gluteBridge', name: 'Glute bridge', category: 'Floor', autoLevel: true, contacts: ['upperBack', 'heel?', 'ball?'],
     description: 'Lying on the back with the hips lifted in line with the thighs.',
     angles: {
-      'hip?.flexion': 10, 'knee?.flexion': 100, 'ankle?.dorsiflexion': -19, 'hip?.abduction': 6,
+      'hip?.flexion': -8, 'knee?.flexion': 100, 'ankle?.dorsiflexion': -15, 'hip?.abduction': 6,
       'shoulder?.elevation': 15, 'shoulder?.plane': -90, 'neck.flexion': 25,
     },
     cues: ['Drive through the heels', 'Ribs down: lift with the glutes, not the lower back'],
@@ -156,11 +168,12 @@ export const POSES: PoseDef[] = [
     id: 'downwardDog', name: 'Downward dog', category: 'Stretch', autoLevel: true, contacts: ['palm?', 'ball?'],
     description: 'Yoga inverted V: stretches hamstrings, calves and shoulders.',
     angles: {
-      'hip?.flexion': 112, 'knee?.flexion': 0, 'ankle?.dorsiflexion': 11.5, 'scapula?.elevation': 18.5,
-      'shoulder?.elevation': 122.5, 'shoulder?.plane': 90, 'shoulder?.rotation': -15, 'elbow?.flexion': 0, 'wrist?.flexion': -80,
+      'hip?.flexion': 112, 'knee?.flexion': 30, 'ankle?.dorsiflexion': 11.5, 'scapula?.elevation': 18.5,
+      'shoulder?.elevation': 122.5, 'shoulder?.plane': 90, 'elbow?.flexion': 0,
       'lumbar.flexion': 0, 'thoracic.flexion': -5, 'neck.flexion': 5,
+      'wrist?.pronation': 170, 'wrist?.flexion': -80, 'shoulder?.rotation': -15,
     },
-    cues: ['Bend the knees if the back rounds', 'Press the chest toward the thighs'],
+    cues: ['Knees softly bent so the hamstrings let the hips lift', 'Press the chest toward the thighs', 'Straighten the legs only if the back stays long'],
   },
   {
     id: 'forwardFold', name: 'Standing forward fold', category: 'Stretch', autoLevel: true, balance: true, contacts: feet,
@@ -181,11 +194,11 @@ export const POSES: PoseDef[] = [
     cues: ['Sit tall on the sit bones first', 'Reach with the chest, not the head'],
   },
   {
-    id: 'quadStretch', name: 'Standing quad stretch', category: 'Stretch', autoLevel: true, balance: true, contacts: ['heelR', 'ballR'],
+    id: 'quadStretch', name: 'Standing quad stretch', category: 'Stretch', autoLevel: true, balance: true, contacts: ['heelR', 'ballR'], holds: [{ hand: 'L', foot: 'L' }],
     description: 'Standing on the right leg, the left heel pulled toward the buttock.',
     angles: {
       'kneeL.flexion': 140, 'hipL.flexion': -8, 'ankleL.dorsiflexion': -30, 'hipR.abduction': -8, 'lumbar.lateral': 16, 'hipL.abduction': -1,
-      'shoulderL.elevation': 35, 'shoulderL.plane': -90, 'elbowL.flexion': 40,
+      'shoulderL.elevation': 50, 'shoulderL.plane': -90, 'shoulderL.rotation': 40, 'elbowL.flexion': 30, 'wristL.pronation': 120,
       'shoulderR.elevation': 90, 'shoulderR.plane': 20,
     },
     cues: ['Knees side by side', 'Tuck the pelvis to feel it at the front of the hip'],
@@ -194,9 +207,10 @@ export const POSES: PoseDef[] = [
     id: 'cobra', name: 'Cobra (back bend)', category: 'Stretch', autoLevel: true, contacts: ['pubicSymphysis', 'toeTip?', 'palm?'],
     description: 'Lying face down and pressing the chest up: lumbar extension.',
     angles: {
-      'lumbar.flexion': -30, 'thoracic.flexion': -22, 'neck.flexion': -20,
+      'lumbar.flexion': -30, 'thoracic.flexion': -26, 'neck.flexion': -20,
       'hip?.flexion': -25, 'ankle?.dorsiflexion': -50,
-      'shoulder?.elevation': 0, 'shoulder?.plane': 70, 'elbow?.flexion': -5, 'wrist?.flexion': -80,
+      'shoulder?.elevation': 16, 'shoulder?.plane': 70, 'elbow?.flexion': 21,
+      'wrist?.pronation': 170, 'wrist?.flexion': -78, 'shoulder?.rotation': 0,
     },
     cues: ['Keep the hips down', 'Stop where the lower back feels comfortable'],
   },

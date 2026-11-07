@@ -230,6 +230,14 @@ function solve3(M: number[][], b: number[]): number[] {
   return [a[0][3] / (a[0][0] || 1e-12), a[1][3] / (a[1][1] || 1e-12), a[2][3] / (a[2][2] || 1e-12)]
 }
 
+/** Contacts within 3 cm of the lowest one: the points that can push on the floor. */
+export function floorContacts(pose: BodyPose, contacts: string[]): { name: string; seg: SegmentId; p: [number, number, number] }[] {
+  const pts = contactPoints(pose, contacts)
+  let minY = Infinity
+  for (const p of pts) minY = Math.min(minY, p.y)
+  return contacts.filter((_, i) => pts[i].y < minY + 0.03).map((name) => ({ name, seg: LANDMARKS[name].seg, p: LANDMARKS[name].p }))
+}
+
 /** Support region along the forward (z) axis spanned by the contacts on the floor. */
 export function supportRange(pose: BodyPose, contacts: string[]): { minZ: number; maxZ: number; minX: number; maxX: number } {
   const pts = contactPoints(pose, contacts)

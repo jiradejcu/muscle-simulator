@@ -34,7 +34,7 @@ const SIDED: Record<string, { seg: string; p: Vec3 }> = {
   // Femur (thigh)
   greaterTrochanter: { seg: 'thigh', p: [0.16, 0.905, -0.01] },
   lesserTrochanter: { seg: 'thigh', p: [0.075, 0.865, -0.015] },
-  glutealTuberosity: { seg: 'thigh', p: [0.145, 0.835, -0.035] },
+  glutealTuberosity: { seg: 'thigh', p: [0.135, 0.83, -0.022] },
   itBandMid: { seg: 'thigh', p: [0.155, 0.72, -0.005] },
   lineaAsperaUpper: { seg: 'thigh', p: [0.115, 0.78, -0.03] },
   lineaAsperaMid: { seg: 'thigh', p: [0.105, 0.7, -0.03] },

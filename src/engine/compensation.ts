@@ -207,7 +207,11 @@ function comOffset(angles: Angles, opts: CompensationOptions): number {
   const com = centreOfMass(pl.pose)
   const sup = supportRange(pl.pose, opts.contacts)
   const margin = Math.min(0.03, (sup.maxZ - sup.minZ) * 0.2)
-  if (com.z < sup.minZ + margin) return com.z - (sup.minZ + margin)
+  // People balance over mid-foot, a little in front of the ankles, not over the heels.
+  const feet = (['L', 'R'] as const).filter((s) => opts.contacts.some((c) => c.endsWith(s) && (c.startsWith('heel') || c.startsWith('ball'))))
+  const ankleZ = feet.length ? feet.reduce((a, s) => a + pl.pose[`foot${s}`].t.z, 0) / feet.length + 0.02 : -Infinity
+  const lower = Math.max(sup.minZ + margin, Math.min(ankleZ, sup.maxZ - margin - 0.01))
+  if (com.z < lower) return com.z - lower
   if (com.z > sup.maxZ - margin) return com.z - (sup.maxZ - margin)
   return 0
 }
@@ -215,9 +219,9 @@ function comOffset(angles: Angles, opts: CompensationOptions): number {
 function balanceShift(angles: Angles, opts: CompensationOptions): { angles: Angles; note: Compensation } | null {
   const off = comOffset(angles, opts)
   if (off === 0) return null
-  // Behind the heels: lean the trunk forward at the hips. In front of the toes: shift the
-  // hips back by tipping at the ankles (the "ankle strategy").
-  const shifts: DofShift[] = off < 0 ? [{ dof: 'hip?.flexion', k: 1 }] : [{ dof: 'ankle?.dorsiflexion', k: -1 }]
+  // The "ankle strategy": tip the whole body forward or back over the feet at the ankles,
+  // leaving hip and spine angles (and any compensation already made there) alone.
+  const shifts: DofShift[] = [{ dof: 'ankle?.dorsiflexion', k: off < 0 ? 1 : -1 }]
   const sides: Side[] = ['L', 'R']
   const max = 25
   const f = (d: number) => comOffset(applyShifts(angles, shifts, sides, d), opts)
@@ -239,7 +243,7 @@ function balanceShift(angles: Angles, opts: CompensationOptions): { angles: Angl
   for (const k of Object.keys(next)) if (Math.abs(next[k] - angles[k]) > 0.05) changes[k] = next[k] - angles[k]
   const text =
     off < 0
-      ? `To stay balanced over the feet the trunk leans ${r0(lo)}° further forward at the hips.`
-      : `To stay balanced the hips shift back: the ankles tip ${r0(lo)}° toward pointing.`
+      ? `To stay balanced over the middle of the feet the whole body tips ${r0(lo)}° forward at the ankles.`
+      : `To stay balanced the hips shift back: the whole body tips ${r0(lo)}° back at the ankles.`
   return { angles: next, note: { id: 'balance', muscleId: '', sides, amount: lo, text, changes } }
 }

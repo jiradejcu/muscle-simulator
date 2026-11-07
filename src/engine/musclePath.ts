@@ -87,6 +87,11 @@ export function wrapSegment(P: Vector3, S: Vector3, C: Vector3, r: number, axis:
   if (ul < 1e-9) return straight
   const cross = (ux * (0 - 0) - uy * (0 - dP)) / ul // u x (C - P), with C at the origin and P = (dP, 0)
   if (winding * cross >= r) return straight
+  // Only wrap when the cylinder lies between P and S. If the centre projects beyond either
+  // end (e.g. a fully bent elbow folds the insertion up beside the origin), the path does not
+  // pass the cylinder at all.
+  const along = (-dP * ux) / ul // (C - P) . u
+  if (along <= 0 || along >= ul) return straight
   const aS = Math.atan2(sy, sx)
   const bP = Math.acos(r / dP)
   const bS = Math.acos(r / dS)

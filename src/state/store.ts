@@ -51,6 +51,7 @@ export interface AppState {
   balance: boolean
   root: { pitch: number; roll: number }
   loadPoint: LoadPoint | null
+  holds: { hand: 'L' | 'R'; foot: 'L' | 'R' }[]
   loadKg: number
   profile: Profile
   profilePreset: string | null
@@ -88,13 +89,13 @@ export interface AppState {
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
 
-function run(s: Pick<AppState, 'current' | 'contacts' | 'autoLevel' | 'balance' | 'root' | 'loadPoint' | 'loadKg' | 'profile' | 'model' | 'compensate'>, pitchOverride?: number, prevPitch?: number): Analysis {
+function run(s: Pick<AppState, 'current' | 'contacts' | 'autoLevel' | 'balance' | 'root' | 'loadPoint' | 'loadKg' | 'holds' | 'profile' | 'model' | 'compensate'>, pitchOverride?: number, prevPitch?: number): Analysis {
   const levelled = pitchOverride === undefined && s.autoLevel
   return analyse({
     target: s.current,
     pose: { contacts: s.contacts, autoLevel: levelled, balance: s.balance && levelled },
     root: pitchOverride === undefined ? s.root : { pitch: pitchOverride, roll: s.root.roll },
-    load: { point: s.loadPoint, kg: s.loadKg },
+    load: { point: s.loadPoint, kg: s.loadKg, holds: s.holds },
     profile: s.profile,
     model: s.model,
     compensate: s.compensate && pitchOverride === undefined,
@@ -113,6 +114,7 @@ const initialBase = {
   balance: !!initialPose.balance,
   root: initialPose.root ?? { pitch: 0, roll: 0 },
   loadPoint: initialPose.load?.point ?? null,
+  holds: initialPose.holds ?? [],
   loadKg: initialPose.load?.kg ?? 0,
   profile: initialProfile,
   model: initialModel,
@@ -155,6 +157,7 @@ export const useStore = create<AppState>((set, get) => {
         balance: !!pose.balance,
         root,
         loadPoint: pose.load?.point ?? null,
+        holds: pose.holds ?? [],
         loadKg: pose.load?.kg ?? 0,
         anim: { from: { ...s.current }, to, fromPitch: s.analysis.sim.root.pitch, toPitch, start: performance.now(), duration: 900 },
       })

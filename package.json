@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "audit": "vitest run --config vitest.audit.config.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

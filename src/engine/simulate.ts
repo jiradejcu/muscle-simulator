@@ -9,7 +9,7 @@ import type { LoadPoint } from './poses'
 import { conditionStrength } from './conditions'
 import { STRENGTH_FACTOR, type Profile } from './profile'
 import { DOFS, JOINT_BY_ID, SEGMENTS, subtree, type Angles, type Side } from './skeleton'
-import { GRAVITY, centreOfMass, solveGround, type PointForce } from './statics'
+import { GRAVITY, centreOfMass, floorContacts, type PointForce } from './statics'
 
 export interface StrandResult {
   key: string
@@ -50,6 +50,13 @@ export interface MuscleResult {
 export interface LoadSpec {
   point: LoadPoint | null
   kg: number
+  /** A hand holding a foot (e.g. standing quad stretch): the arm carries the lower leg. */
+  holds?: HandHold[]
+}
+
+export interface HandHold {
+  hand: Side
+  foot: Side
 }
 
 export interface SimulationResult {
@@ -158,8 +165,12 @@ export function simulate(
     totalWeight += -l.force.y
   }
   cop.divideScalar(totalWeight)
-  const ground = contacts.length ? solveGround(pose, contacts, totalWeight, cop) : { forces: [], imbalance: 0, supported: [] }
-  forces.push(...ground.forces)
+  // Floor contacts: the points (within 3 cm of the lowest one) that can push up. How the weight
+  // is shared between them is not decided here: with three or more supports statics alone
+  // cannot say, so the floor forces become unknowns in the optimisation below and the body
+  // carries its weight wherever that costs the least muscle effort.
+  const floor = floorContacts(pose, contacts)
+  const nC = floor.length
 
   // --- Lengths at the current pose ---------------------------------------
   const nS = model.length
@@ -169,8 +180,10 @@ export function simulate(
   // --- Generalised forces and moment arms by finite differences -----------
   const nD = DOFS.length
   const crossing = crossingStrands(model)
-  const Q = new Float64Array(nD)
+  const Q = new Float64Array(nD) // generalised force of gravity and loads
   const M = new Float64Array(nD * nS) // moment arms (m / rad), row = DOF
+  // Generalised force per newton of floor force at each contact, for the x, y (up), z components
+  const J = new Float64Array(nD * nC * 3)
   const tmpA = new Vector3()
   const tmpB = new Vector3()
   for (let d = 0; d < nD; d++) {
@@ -187,6 +200,14 @@ export function simulate(
       q += f.force.dot(tmpA.sub(tmpB)) / denom
     }
     Q[d] = q
+    for (let c = 0; c < nC; c++) {
+      transformPoint(pp, floor[c].seg, floor[c].p, tmpA)
+      transformPoint(pm, floor[c].seg, floor[c].p, tmpB)
+      const o = (d * nC + c) * 3
+      J[o] = (tmpA.x - tmpB.x) / denom
+      J[o + 1] = (tmpA.y - tmpB.y) / denom
+      J[o + 2] = (tmpA.z - tmpB.z) / denom
+    }
     for (const i of crossing[d]) {
       const lp = pathLength(pp, model[i].nodes)
       const lm = pathLength(pm, model[i].nodes)
@@ -213,24 +234,101 @@ export function simulate(
     tau[d] = t
   }
 
+  // --- Hand-foot holds ---------------------------------------------------
+  // A hand holding a foot acts like a strong, cheap rope: it can only pull, and its leverage
+  // on every joint comes from how the rope length changes. The rope runs from the forearm to
+  // the foot (the arm pulls the foot along the forearm), so its direction is well defined even
+  // though the hand sits on the foot.
+  const holds = (load.holds ?? []).map((h) => [
+    { seg: LANDMARKS[`forearmFlexorVia${h.hand}`].seg, p: LANDMARKS[`forearmFlexorVia${h.hand}`].p },
+    { seg: LANDMARKS[`medialCuneiform${h.foot}`].seg, p: LANDMARKS[`medialCuneiform${h.foot}`].p },
+  ])
+  const nH = holds.length
+  const MH = new Float64Array(nD * nH)
+  if (nH) {
+    for (let d = 0; d < nD; d++) {
+      const key = DOFS[d].key
+      const pp = forwardKinematics({ ...angles, [key]: angles[key] + H }, root)
+      const pm = forwardKinematics({ ...angles, [key]: angles[key] - H }, root)
+      for (let j = 0; j < nH; j++) MH[d * nH + j] = -(pathLength(pp, holds[j]) - pathLength(pm, holds[j])) / (2 * H * RAD)
+    }
+  }
+
   // --- Static optimisation -----------------------------------------------
-  const nX = nS + nD
-  const A = new Float64Array(nD * nX)
+  // Unknowns: muscle forces | hold tensions | floor forces (x, up, z per contact) |
+  // joint reserves | 6 whole-body reserves.
+  // Rows: one per DOF (torque balance) + 6 for whole-body balance (three forces and three
+  // moments about the combined centre of mass). Horizontal floor forces are friction: they
+  // are priced so the body uses them moderately (about what a grippy floor allows). Whole-body
+  // reserves are tiny, so they only come into play when the floor cannot balance the body.
+  const MU = 0.08
+  const oH = nS
+  const oC = nS + nH
+  const oR = oC + nC * 3
+  const oB = oR + nD
+  const nX = oB + 6
+  const nRows = nD + 6
+  const A = new Float64Array(nRows * nX)
   const w = new Float64Array(nX)
   const nonNeg = new Uint8Array(nX)
+  const rhs = new Float64Array(nRows)
   for (let d = 0; d < nD; d++) {
     for (let i = 0; i < nS; i++) A[d * nX + i] = M[d * nS + i]
-    A[d * nX + nS + d] = 1
+    for (let j = 0; j < nH; j++) A[d * nX + oH + j] = MH[d * nH + j]
+    for (let c = 0; c < nC; c++) for (let k = 0; k < 3; k++) A[d * nX + oC + c * 3 + k] = J[(d * nC + c) * 3 + k]
+    A[d * nX + oR + d] = 1
+    rhs[d] = tau[d]
   }
+  const floorPts = floor.map((c) => transformPoint(pose, c.seg, c.p))
+  const row = (k: number) => (nD + k) * nX
+  for (let c = 0; c < nC; c++) {
+    const rx = floorPts[c].x - cop.x
+    const ry = floorPts[c].y - cop.y
+    const rz = floorPts[c].z - cop.z
+    const ix = oC + c * 3
+    const iy = ix + 1
+    const iz = ix + 2
+    A[row(0) + ix] = 1 // sum fx = 0
+    A[row(1) + iy] = 1 // sum fy = total weight
+    A[row(2) + iz] = 1 // sum fz = 0
+    // moments about the centre of mass: r x f
+    A[row(3) + iz] = ry
+    A[row(3) + iy] = -rz
+    A[row(4) + ix] = rz
+    A[row(4) + iz] = -rx
+    A[row(5) + iy] = rx
+    A[row(5) + ix] = -ry
+    w[iy] = totalWeight
+    nonNeg[iy] = 1
+    w[ix] = totalWeight * MU
+    w[iz] = totalWeight * MU
+  }
+  for (let k = 0; k < 6; k++) {
+    A[row(k) + oB + k] = 1
+    w[oB + k] = totalWeight * 2e-4
+  }
+  rhs[nD + 1] = totalWeight
   for (let i = 0; i < nS; i++) {
     w[i] = fmax[i]
     nonNeg[i] = 1
   }
+  for (let j = 0; j < nH; j++) {
+    w[oH + j] = 2000 // the arm and grip are strong compared with the forces involved
+    nonNeg[oH + j] = 1
+  }
   for (let d = 0; d < nD; d++) {
     const def = DOFS[d]
-    w[nS + d] = reserveCapacity(angles[def.key], def.min, def.max)
+    w[oR + d] = reserveCapacity(angles[def.key], def.min, def.max)
   }
-  const x = weightedMinNorm(A, tau, nD, nX, w, nonNeg)
+  const x = weightedMinNorm(A, rhs, nRows, nX, w, nonNeg)
+
+  // Floor forces chosen by the optimisation
+  for (let c = 0; c < nC; c++) {
+    const i = oC + c * 3
+    forces.push({ seg: floor[c].seg, p: floor[c].p, force: new Vector3(x[i], x[i + 1], x[i + 2]), kind: 'ground', label: floor[c].name })
+  }
+  const imbalance =
+    totalWeight > 0 ? (Math.hypot(x[oB + 3], x[oB + 5]) + Math.hypot(x[oB], x[oB + 1] * 0, x[oB + 2]) * 0.1) / totalWeight + Math.abs(x[oB + 1]) / totalWeight : 0
 
   // --- Results ----------------------------------------------------------
   const strands: StrandResult[] = model.map((s, i) => {
@@ -285,8 +383,10 @@ export function simulate(
   const jointTorque: Record<string, number> = {}
   const reserve: Record<string, number> = {}
   for (let d = 0; d < nD; d++) {
-    jointTorque[DOFS[d].key] = -Q[d]
-    reserve[DOFS[d].key] = x[nS + d]
+    let qFloor = 0
+    for (let c = 0; c < nC; c++) for (let k = 0; k < 3; k++) qFloor += J[(d * nC + c) * 3 + k] * x[oC + c * 3 + k]
+    jointTorque[DOFS[d].key] = -(Q[d] + qFloor)
+    reserve[DOFS[d].key] = x[oR + d]
   }
 
   return {
@@ -298,7 +398,7 @@ export function simulate(
     muscleByKey: byKey,
     com: comBody,
     forces,
-    imbalance: ground.imbalance,
+    imbalance,
     jointTorque,
     reserve,
     bodyWeight,

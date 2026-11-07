@@ -42,12 +42,12 @@ npm run build      # type-check + production build into dist/
 
 | Step | File | What it does |
 |---|---|---|
-| Skeleton | `skeleton.ts` | 18 segments, 17 joints, 37 DOFs with limits. Y up, Z forward, X to the body's left, metres. |
+| Skeleton | `skeleton.ts` | 18 segments, 17 joints, 39 DOFs with limits (including forearm rotation). Y up, Z forward, X to the body's left, metres. |
 | Kinematics | `kinematics.ts` | Forward kinematics; every segment maps rest-world points to the current pose. |
 | Muscles | `muscles.ts`, `landmarks.ts`, `musclePath.ts` | 33 muscle groups per side (120 strands). Paths run through bony landmarks and wrap around joint cylinders with a fixed winding, so moment arms stay continuous. |
 | Comfortable range | `model.ts`, `profile.ts` | Comfortable length comes from a library of normal full-range positions. The person's test angles scale it. |
 | Placement | `statics.ts` | Tilts the body so the pose's contact points sit level on the floor, then grounds it. |
-| Statics | `simulate.ts` | Gravity, external load and a non-negative floor reaction give the torque needed at each joint (virtual work by finite differences). Muscle forces come from minimising summed squared activation (active-set QP in `linalg.ts`), with passive stretch forces and small joint "reserve" torques. |
+| Statics | `simulate.ts` | Gravity and external load give the torque needed at each joint (virtual work by finite differences). One optimisation (active-set QP in `linalg.ts`) chooses muscle forces, floor forces at every contact (push plus moderately priced friction), hand-holds-foot tension and small joint "reserve" torques together, minimising summed squared activation subject to joint and whole-body balance. So the body puts its weight where that costs the least effort. Passive stretch forces are included. |
 | Linkage | `compensation.ts` | Rules such as "tight hamstrings → less hip flexion, more lumbar flexion"; a balance step keeps the centre of mass over the feet. |
 | Conditions | `conditions.ts` | Postural offsets and muscle weakness scaled by severity. |
 | Warnings | `warnings.ts` | Rounded back under load, hyperextension, knee valgus, shoulder impingement, end of range, over-stretch, overload, balance. |
@@ -75,10 +75,20 @@ slightly when active, and carry a fibre texture.
 such as Z-Anatomy or BodyParts3D are CC BY-SA, so attribution is required and modified
 assets must be shared under the same licence.
 
+## Checking the poses
+
+`npm run audit` prints every preset's hand orientation, top muscle efforts, stretches,
+warnings and key joint torques (`POSES=pushupBottom,plank npm run audit` for a subset).
+
 ## Known simplifications
 
 - Two spinal joints (lumbar and thoracic) plus the neck, so scoliosis is a single sideways bend
   with twist, not a curve spread over many vertebrae.
 - No scapulohumeral rhythm. The shoulder blade only moves when its sliders are set.
 - Only static poses: no inertia, no force–length–velocity curves for active muscle.
+- Muscle sharing follows the minimum-effort rule. Deliberate cues such as "squeeze the glutes"
+  are not predicted, so in a glute bridge the model lets the hamstrings carry the small hip
+  load.
+- Friction is a soft cost rather than a strict friction cone, and push-up pec activity is
+  probably underestimated (real hands also push outward).
 - Muscle strengths and paths are rounded literature values for one average 1.75 m adult.

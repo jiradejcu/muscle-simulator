@@ -178,12 +178,20 @@ function sidedJoints(side: Side): JointDef[] {
     },
     {
       id: `wrist${s}` as JointId,
-      label: `${name} wrist`,
+      label: `${name} wrist & forearm`,
       segment: `hand${s}` as SegmentId,
       parent: `forearm${s}` as SegmentId,
       side,
-      steps: [{ axis: 'x', dof: 'flexion', factor: -1 }],
-      dofs: [{ name: 'flexion', label: 'Flexion / extension', min: -80, max: 80, positive: 'palm-side bend', negative: 'back-of-hand bend' }],
+      // Forearm rotation is applied to the hand (the radius carries the hand round the ulna;
+      // the elbow and olecranon do not turn). 0 = anatomical position, palm forward.
+      steps: [
+        { axis: 'y', dof: 'pronation', factor: -1 },
+        { axis: 'x', dof: 'flexion', factor: -1 },
+      ],
+      dofs: [
+        { name: 'pronation', label: 'Forearm rotation (0° palm forward, 90° thumb forward, 170° palm back)', min: -10, max: 170, positive: 'turn palm down / back', negative: 'turn palm up / forward' },
+        { name: 'flexion', label: 'Flexion / extension', min: -80, max: 80, positive: 'palm-side bend', negative: 'back-of-hand bend' },
+      ],
     },
     {
       id: `hip${s}` as JointId,
