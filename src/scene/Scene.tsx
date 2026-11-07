@@ -1,7 +1,8 @@
-import { ContactShadows, Grid, OrbitControls } from '@react-three/drei'
+import { ContactShadows, Grid } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useStore } from '../state/store'
 import { Bones } from './Bones'
+import { CameraControls } from './CameraControls'
 import { JointGizmos } from './JointGizmos'
 import { Muscles } from './Muscles'
 import { Forces, Labels, LoadProp } from './Overlays'
@@ -55,7 +56,7 @@ export function Scene() {
         infiniteGrid
       />
       <ContactShadows position={[0, 0.001, 0]} opacity={0.5} scale={4} blur={2.2} far={1.5} resolution={512} />
-      <OrbitControls makeDefault target={[0, 0.82, 0]} minDistance={0.6} maxDistance={7} maxPolarAngle={Math.PI * 0.95} />
+      <CameraControls />
     </Canvas>
   )
 }

@@ -2,6 +2,7 @@ import { Scene } from './scene/Scene'
 import { useStore } from './state/store'
 import { LeftPanel } from './ui/LeftPanel'
 import { RightPanel } from './ui/RightPanel'
+import { ContextMenu } from './ui/ContextMenu'
 import { LabelOverlay } from './ui/LabelOverlay'
 import { Toolbar } from './ui/Toolbar'
 
@@ -24,12 +25,13 @@ export default function App() {
           <Scene />
           <LabelOverlay />
           <Toolbar />
+          <ContextMenu />
           {h && (
             <div className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-slate-900/85 px-3 py-1.5 text-[12px] text-slate-200 backdrop-blur">
               <b>{h.side === 'L' ? 'Left' : 'Right'} {h.def.name}</b> · effort {Math.round(h.activation * 100)}% · stretch {Math.round(Math.max(0, h.stretch) * 100)}%
             </div>
           )}
-          <div className="pointer-events-none absolute bottom-3 right-3 text-[11px] text-slate-500">Drag to orbit · scroll to zoom · right-drag to pan</div>
+          <div className="pointer-events-none absolute bottom-3 right-3 text-[11px] text-slate-500">Middle-drag orbit (or Alt+left) · Shift+middle pan · scroll zoom · right-click menu · 1/3/7 views, Home frame</div>
         </div>
         <RightPanel />
       </main>

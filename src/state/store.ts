@@ -19,6 +19,7 @@ import {
   type StrengthLevel,
 } from '../engine'
 import { placeBody } from '../engine/statics'
+import type { ContextMenuState } from '../scene/cameraActions'
 
 export interface ViewOptions {
   heat: boolean
@@ -81,6 +82,8 @@ export interface AppState {
   selectMuscle: (key: string | null) => void
   hoverMuscle: (key: string | null) => void
   selectJoint: (id: string | null) => void
+  contextMenu: ContextMenuState | null
+  openContextMenu: (m: ContextMenuState | null) => void
   setView: (patch: Partial<ViewOptions>) => void
 }
 
@@ -239,6 +242,8 @@ export const useStore = create<AppState>((set, get) => {
     selectMuscle: (key) => set({ selectedMuscle: key }),
     hoverMuscle: (key) => set({ hoveredMuscle: key }),
     selectJoint: (id) => set({ selectedJoint: id }),
+    contextMenu: null,
+    openContextMenu: (m) => set({ contextMenu: m }),
     setView: (patch) => set({ view: { ...get().view, ...patch } }),
   }
 })
