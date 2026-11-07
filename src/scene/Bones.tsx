@@ -1,11 +1,15 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Group, Matrix4, MeshStandardMaterial, type BufferGeometry } from 'three'
+import { Group, Matrix4, Mesh, MeshStandardMaterial, type BufferGeometry } from 'three'
+import type { ThreeEvent } from '@react-three/fiber'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { segmentMatrix } from '../engine/kinematics'
 import { SEGMENTS, type SegmentId } from '../engine/skeleton'
 import { useStore } from '../state/store'
 import { boneGeometries } from './boneGeometry'
+
+const noRaycast = () => {}
+const blockPointer = (e: ThreeEvent<PointerEvent>) => e.stopPropagation()
 
 /**
  * Optional real bone meshes. Put GLB files in public/models/bones/ and list them in
@@ -83,7 +87,17 @@ export function Bones() {
           }}
         >
           {(overrides[s.id] ?? [geos[s.id]]).map((g, i) => (
-            <mesh key={i} geometry={g} material={material} castShadow receiveShadow />
+            <mesh
+              key={i}
+              geometry={g}
+              material={material}
+              castShadow
+              receiveShadow
+              // Bones in front block the pointer so muscles behind them are not highlighted
+              raycast={visible ? Mesh.prototype.raycast : noRaycast}
+              onPointerOver={blockPointer}
+              onPointerMove={blockPointer}
+            />
           ))}
         </group>
       ))}

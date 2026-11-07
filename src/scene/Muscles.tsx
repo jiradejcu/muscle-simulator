@@ -1,6 +1,8 @@
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { Color, MeshStandardMaterial, Vector3, type Mesh } from 'three'
+import { Color, Mesh, MeshStandardMaterial, Vector3 } from 'three'
+
+const noRaycast = () => {}
 import { pathLength } from '../engine/musclePath'
 import { useStore } from '../state/store'
 import { fibreTexture, heatColor, MuscleTube } from './muscleTube'
@@ -86,7 +88,9 @@ export function Muscles() {
         const inTendon = t < tA || t > 1 - tB
         const edge = Math.min(Math.abs(t - tA), Math.abs(t - (1 - tB)))
         out.copy(base)
-        if (heatOn) out.lerp(heatC, 0.18 + 0.67 * Math.min(1, res.heat))
+        // Mostly the heat colour, so muscles match the legend (a weak blend of red and
+        // blue reads as an off-scale purple). Heat off shows the natural muscle red.
+        if (heatOn) out.lerp(heatC, 0.8)
         if (inTendon) out.lerp(TENDON, edge < 0.02 ? 0.5 + edge * 25 : 1)
         return out
       }
@@ -94,14 +98,28 @@ export function Muscles() {
     }
   })
 
+  // Highlight every strand of the selected / hovered muscle (outside render).
+  useEffect(() => {
+    for (const it of items) {
+      const isSel = selected === it.muscleKey
+      const isHover = hovered === it.muscleKey
+      it.material.emissive.set(isSel || isHover ? '#ffffff' : '#000000')
+      it.material.emissiveIntensity = isSel ? (isHover ? 0.36 : 0.26) : isHover ? 0.18 : 0
+    }
+  }, [items, selected, hovered])
+
+  // Pointer "over" can arrive before the previous strand's "out", so set on over/move and
+  // only clear when leaving the muscle that is currently highlighted.
   const onOver = (e: ThreeEvent<PointerEvent>, key: string) => {
     e.stopPropagation()
-    hoverMuscle(key)
+    if (useStore.getState().hoveredMuscle !== key) hoverMuscle(key)
     document.body.style.cursor = 'pointer'
   }
-  const onOut = () => {
-    hoverMuscle(null)
-    document.body.style.cursor = ''
+  const onOut = (key: string) => {
+    if (useStore.getState().hoveredMuscle === key) {
+      hoverMuscle(null)
+      document.body.style.cursor = ''
+    }
   }
   const onClick = (e: ThreeEvent<MouseEvent>, key: string) => {
     e.stopPropagation()
@@ -112,20 +130,19 @@ export function Muscles() {
     <group>
       {items.map((it) => {
         const visible = it.layer === 'superficial' ? view.superficial : view.deep
-        const isSel = selected === it.muscleKey
-        const isHover = hovered === it.muscleKey
-        it.material.emissive.set(isSel ? '#ffffff' : isHover ? '#ffffff' : '#000000')
-        it.material.emissiveIntensity = isSel ? 0.28 : isHover ? 0.14 : 0
         return (
           <mesh
             key={it.key}
             geometry={it.tube.geometry}
             material={it.material}
             visible={visible}
+            // Three.js raycasts invisible meshes too; a hidden layer must not catch the mouse
+            raycast={visible ? Mesh.prototype.raycast : noRaycast}
             castShadow
             frustumCulled={false}
             onPointerOver={(e) => onOver(e, it.muscleKey)}
-            onPointerOut={onOut}
+            onPointerMove={(e) => onOver(e, it.muscleKey)}
+            onPointerOut={() => onOut(it.muscleKey)}
             onClick={(e) => onClick(e, it.muscleKey)}
             ref={(m: Mesh | null) => {
               if (m) m.renderOrder = it.layer === 'deep' ? 0 : 1

@@ -24,6 +24,7 @@ export function Toolbar() {
             <span>relaxed</span>
             <span>working / stretched hard</span>
           </div>
+          <div className="mt-1 text-[10px] text-slate-500">Turn Heat off for natural muscle colour</div>
         </div>
       )}
     </div>
