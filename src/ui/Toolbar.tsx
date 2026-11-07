@@ -9,7 +9,6 @@ export function Toolbar() {
     <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-3">
       <div className="pointer-events-auto flex flex-wrap gap-1.5 rounded-lg bg-slate-900/80 p-1.5 backdrop-blur">
         <Toggle label="Heat" checked={view.heat} onChange={(v) => setView({ heat: v })} title="Colour muscles by effort or stretch" />
-        <Toggle label="Skin" checked={view.skin} onChange={(v) => setView({ skin: v })} />
         <Toggle label="Superficial" checked={view.superficial} onChange={(v) => setView({ superficial: v })} title="Outer muscle layer" />
         <Toggle label="Deep" checked={view.deep} onChange={(v) => setView({ deep: v })} title="Deep muscle layer" />
         <Toggle label="Bones" checked={view.bones} onChange={(v) => setView({ bones: v })} />

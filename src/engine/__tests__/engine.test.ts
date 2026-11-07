@@ -149,6 +149,14 @@ describe('statics', () => {
     for (const m of res.sim.muscles) expect(m.activation).toBeLessThan(0.2)
   })
 
+  it('keeps the calves (not the shin muscles) lightly active when standing', () => {
+    const sim = run(POSE_BY_ID.standing).sim
+    const calves = sim.muscleByKey['soleus.L'].activation + sim.muscleByKey['gastrocnemius.L'].activation
+    expect(calves).toBeGreaterThan(0.04)
+    expect(sim.muscleByKey['tibialisAnterior.L'].activation).toBeLessThan(0.02)
+    expect(sim.com.z - sim.pose.footL.t.z).toBeGreaterThan(0.02) // line of gravity in front of the ankle
+  })
+
   it('loads the knee and hip extensors in a squat', () => {
     const stand = run(POSE_BY_ID.standing).sim
     const squat = run(POSE_BY_ID.backSquat).sim

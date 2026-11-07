@@ -6,7 +6,6 @@ import { CameraControls } from './CameraControls'
 import { JointGizmos } from './JointGizmos'
 import { Muscles } from './Muscles'
 import { Forces, Labels, LoadProp } from './Overlays'
-import { Skin } from './Skin'
 
 function Animator() {
   useFrame(() => {
@@ -37,7 +36,6 @@ export function Scene() {
       <group>
         <Bones />
         <Muscles />
-        <Skin />
         <JointGizmos />
         <Labels />
         <Forces />

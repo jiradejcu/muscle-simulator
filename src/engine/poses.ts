@@ -28,8 +28,10 @@ export const POSES: PoseDef[] = [
   {
     id: 'standing', name: 'Standing', category: 'Standing', autoLevel: true, balance: true, contacts: feet,
     description: 'Relaxed upright standing, the reference posture for every muscle\'s resting length.',
-    angles: {},
-    cues: ['Weight spread over the whole foot', 'Ribs stacked over the pelvis'],
+    // A slight forward lean: in quiet standing the line of gravity falls a few cm in front of
+    // the ankles, so the calves stay lightly active.
+    angles: { 'ankle?.dorsiflexion': 2 },
+    cues: ['Weight spread over the whole foot', 'Ribs stacked over the pelvis', 'The calves quietly stop you tipping forward'],
   },
   {
     id: 'squat', name: 'Bodyweight squat', category: 'Standing', autoLevel: true, balance: true, contacts: feet,

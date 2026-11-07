@@ -33,7 +33,7 @@ npm run build      # type-check + production build into dist/
   hyperkyphosis, hyperlordosis / anterior pelvic tilt, flat back, forward head, rounded
   shoulders, knock knees, bow legs, flat feet, knee hyperextension, weak glutes, weak core),
   each with a severity slider.
-- **3D view toolbar**: heat overlay, skin, superficial/deep muscle layers, bones, labels,
+- **3D view toolbar**: heat overlay, superficial/deep muscle layers, bones, labels,
   forces (floor reaction, load, centre of mass) and joint handles.
 - **Right panel**: the selected muscle's length, stretch against your comfortable range,
   effort, tension and an explanation, plus warnings and the most demanding muscles.

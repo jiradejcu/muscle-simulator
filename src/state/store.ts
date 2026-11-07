@@ -23,7 +23,6 @@ import type { ContextMenuState } from '../scene/cameraActions'
 
 export interface ViewOptions {
   heat: boolean
-  skin: boolean
   superficial: boolean
   deep: boolean
   bones: boolean
@@ -139,7 +138,7 @@ export const useStore = create<AppState>((set, get) => {
     selectedMuscle: 'vasti.L',
     hoveredMuscle: null,
     selectedJoint: null,
-    view: { heat: true, skin: false, superficial: true, deep: true, bones: true, labels: true, gizmos: false, forces: false },
+    view: { heat: true, superficial: true, deep: true, bones: true, labels: true, gizmos: false, forces: false },
 
     setPose: (id) => {
       const pose = POSE_BY_ID[id]

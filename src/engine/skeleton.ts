@@ -283,10 +283,10 @@ function sidedSegments(side: Side): SegmentDef[] {
 }
 
 export const SEGMENTS: SegmentDef[] = [
-  { id: 'pelvis', label: 'Pelvis', parent: null, joint: null, origin: REST.hipCentre, massFraction: 0.142, com: [0, 0.97, -0.02], end: REST.lumbosacral },
-  { id: 'lumbar', label: 'Abdomen / lumbar spine', parent: 'pelvis', joint: 'lumbar', origin: REST.lumbosacral, massFraction: 0.139, com: [0, 1.11, 0.0], end: REST.thoracolumbar },
-  { id: 'thorax', label: 'Chest / thoracic spine', parent: 'lumbar', joint: 'thoracic', origin: REST.thoracolumbar, massFraction: 0.216, com: [0, 1.33, -0.01], end: REST.cervicothoracic },
-  { id: 'head', label: 'Head and neck', parent: 'thorax', joint: 'neck', origin: REST.cervicothoracic, massFraction: 0.081, com: [0, 1.62, 0.0], end: [0, 1.75, 0] },
+  { id: 'pelvis', label: 'Pelvis', parent: null, joint: null, origin: REST.hipCentre, massFraction: 0.142, com: [0, 0.97, 0.005], end: REST.lumbosacral },
+  { id: 'lumbar', label: 'Abdomen / lumbar spine', parent: 'pelvis', joint: 'lumbar', origin: REST.lumbosacral, massFraction: 0.139, com: [0, 1.11, 0.035], end: REST.thoracolumbar },
+  { id: 'thorax', label: 'Chest / thoracic spine', parent: 'lumbar', joint: 'thoracic', origin: REST.thoracolumbar, massFraction: 0.216, com: [0, 1.33, 0.015], end: REST.cervicothoracic },
+  { id: 'head', label: 'Head and neck', parent: 'thorax', joint: 'neck', origin: REST.cervicothoracic, massFraction: 0.081, com: [0, 1.62, 0.02], end: [0, 1.75, 0] },
   ...sidedSegments('L'),
   ...sidedSegments('R'),
 ]
