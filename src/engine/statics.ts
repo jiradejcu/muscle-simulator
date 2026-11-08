@@ -64,6 +64,64 @@ function levelCost(contacts: Vector3[], checks: Vector3[], pitch: number): numbe
   return cost
 }
 
+/** Height of a point after whole-body roll (about z) then pitch (about x), degrees. */
+function heightPR(v: Vector3, pitch: number, roll: number): number {
+  const cr = Math.cos(roll * DEG)
+  const sr = Math.sin(roll * DEG)
+  const y1 = v.x * sr + v.y * cr
+  return y1 * Math.cos(pitch * DEG) - v.z * Math.sin(pitch * DEG)
+}
+
+/** Cost of a whole-body pitch and roll: contacts level, nothing else below them. */
+function levelCostPR(contacts: Vector3[], checks: Vector3[], pitch: number, roll: number): number {
+  let mean = 0
+  const ys = contacts.map((p) => heightPR(p, pitch, roll))
+  for (const y of ys) mean += y
+  mean /= ys.length
+  let cost = 0
+  for (const y of ys) cost += (y - mean) * (y - mean)
+  for (const p of checks) {
+    const pen = mean - 0.012 - heightPR(p, pitch, roll)
+    if (pen > 0) cost += 3 * pen * pen
+  }
+  return cost
+}
+
+/** Search pitch and roll together (for wide or one-sided stances). */
+function levelPitchRoll(angles: Angles, contacts: string[], hint?: { pitch: number; roll: number }): { pitch: number; roll: number } {
+  const base = forwardKinematics(angles, { pitch: 0, roll: 0, position: new Vector3() })
+  const cps = contactPoints(base, contacts)
+  const chk = checkPoints(base)
+  let best = { pitch: 0, roll: 0 }
+  let bestCost = Infinity
+  for (let p = -180; p < 180; p += 4) {
+    for (let r = -60; r <= 60; r += 4) {
+      const c = levelCostPR(cps, chk, p, r)
+      if (c < bestCost - 1e-9) {
+        bestCost = c
+        best = { pitch: p, roll: r }
+      }
+    }
+  }
+  if (hint && levelCostPR(cps, chk, hint.pitch, hint.roll) <= bestCost * 1.05 + 1e-7) best = { ...hint }
+  // Pattern search refinement
+  for (const step of [2, 1, 0.5, 0.25, 0.1]) {
+    let improved = true
+    while (improved) {
+      improved = false
+      for (const [dp, dr] of [[step, 0], [-step, 0], [0, step], [0, -step]]) {
+        const c = levelCostPR(cps, chk, best.pitch + dp, best.roll + dr)
+        if (c < bestCost - 1e-12) {
+          bestCost = c
+          best = { pitch: best.pitch + dp, roll: best.roll + dr }
+          improved = true
+        }
+      }
+    }
+  }
+  return best
+}
+
 /**
  * Place the body in the world: optionally choose the whole-body pitch that rests the
  * contacts level on the floor, then lift so nothing is below y = 0 and centre the contacts
@@ -75,10 +133,15 @@ export function placeBody(
   autoLevel: boolean,
   manualRoot: { pitch: number; roll: number },
   pitchHint?: number,
+  opts?: { levelRoll?: boolean; rollHint?: number },
 ): Placement {
   let pitch = manualRoot.pitch
-  const roll = manualRoot.roll
-  if (autoLevel && contacts.length > 0) {
+  let roll = manualRoot.roll
+  if (autoLevel && contacts.length > 0 && opts?.levelRoll) {
+    const pr = levelPitchRoll(angles, contacts, pitchHint !== undefined ? { pitch: pitchHint, roll: opts.rollHint ?? 0 } : undefined)
+    pitch = pr.pitch
+    roll = pr.roll
+  } else if (autoLevel && contacts.length > 0) {
     const base = forwardKinematics(angles, { pitch: 0, roll, position: new Vector3() })
     const cps = contactPoints(base, contacts)
     const chk = checkPoints(base)

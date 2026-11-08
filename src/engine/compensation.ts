@@ -69,7 +69,7 @@ const RULES: Rule[] = [
     muscleId: 'iliopsoas',
     limit: 1.1,
     maxDelta: 30,
-    when: (a, s) => a[`hip${s}.flexion`] < 10,
+    when: (a, s) => a[`hip${s}.flexion`] < 10 && Math.abs(a['lumbar.lateral']) + Math.abs(a['thoracic.lateral']) < 15,
     shifts: [{ dof: 'hip?.flexion', k: 1 }, { dof: 'lumbar.flexion', k: -0.8 }],
     describe: (d, s) =>
       `Tight hip flexors on ${sideWord(s)} side${s.length === 2 ? 's' : ''} pull the pelvis forward: the hip extends ${r0(d)}° less and the lower back arches instead.`,
@@ -79,7 +79,7 @@ const RULES: Rule[] = [
     muscleId: 'rectusFemoris',
     limit: 1.1,
     maxDelta: 30,
-    when: (a, s) => a[`hip${s}.flexion`] < 20 && a[`knee${s}.flexion`] > 60,
+    when: (a, s) => a[`hip${s}.flexion`] < 20 && a[`knee${s}.flexion`] > 60 && Math.abs(a['lumbar.lateral']) + Math.abs(a['thoracic.lateral']) < 15,
     shifts: [{ dof: 'hip?.flexion', k: 1 }, { dof: 'lumbar.flexion', k: -0.6 }],
     describe: (d) => `A tight rectus femoris tips the pelvis forward when the knee is bent: the hip bends ${r0(d)}° and the lower back arches.`,
   },
@@ -88,7 +88,9 @@ const RULES: Rule[] = [
     muscleId: 'latissimusDorsi',
     limit: 1.1,
     maxDelta: 40,
-    when: (a, s) => a[`shoulder${s}.elevation`] > 100,
+    // Overhead reach with a roughly upright trunk. In a side bend the stretched lat is the
+    // point of the pose, so it is not converted into a back arch.
+    when: (a, s) => a[`shoulder${s}.elevation`] > 100 && Math.abs(a['lumbar.lateral']) + Math.abs(a['thoracic.lateral']) < 15,
     shifts: [{ dof: 'shoulder?.elevation', k: -1 }, { dof: 'thoracic.flexion', k: -0.5 }, { dof: 'lumbar.flexion', k: -0.5 }],
     describe: (d) => `Tight lats limit how far the arms go overhead (${r0(d)}° short), so the back arches to get the arms up.`,
   },
@@ -143,6 +145,7 @@ export interface CompensationOptions {
   contacts: string[]
   autoLevel: boolean
   balance: boolean
+  levelRoll?: boolean
   root: { pitch: number; roll: number }
 }
 
@@ -186,13 +189,18 @@ export function compensate(target: Angles, model: StrandModel[], opts: Compensat
       notes.push(b.note)
       angles = b.angles
     }
+    const side = lateralShift(angles, opts)
+    if (side) {
+      notes.push(side.note)
+      angles = side.angles
+    }
   }
   return { angles, notes }
 }
 
 function contactSpread(angles: Angles, opts: CompensationOptions): number {
   if (!opts.autoLevel || opts.contacts.length < 2) return 0
-  const pl = placeBody(angles, opts.contacts, true, opts.root)
+  const pl = placeBody(angles, opts.contacts, true, opts.root, undefined, { levelRoll: opts.levelRoll })
   let max = 0
   for (const c of opts.contacts) {
     const l = LANDMARKS[c]
@@ -203,7 +211,7 @@ function contactSpread(angles: Angles, opts: CompensationOptions): number {
 
 /** Forward-backward offset of the centre of mass from the support area (0 = inside). */
 function comOffset(angles: Angles, opts: CompensationOptions): number {
-  const pl = placeBody(angles, opts.contacts, opts.autoLevel, opts.root)
+  const pl = placeBody(angles, opts.contacts, opts.autoLevel, opts.root, undefined, { levelRoll: opts.levelRoll })
   const com = centreOfMass(pl.pose)
   const sup = supportRange(pl.pose, opts.contacts)
   const margin = Math.min(0.03, (sup.maxZ - sup.minZ) * 0.2)
@@ -246,4 +254,57 @@ function balanceShift(angles: Angles, opts: CompensationOptions): { angles: Angl
       ? `To stay balanced over the middle of the feet the whole body tips ${r0(lo)}° forward at the ankles.`
       : `To stay balanced the hips shift back: the whole body tips ${r0(lo)}° back at the ankles.`
   return { angles: next, note: { id: 'balance', muscleId: '', sides, amount: lo, text, changes } }
+}
+
+/** Side-to-side offset of the centre of mass from the support area (0 = inside). */
+function comOffsetX(angles: Angles, opts: CompensationOptions): number {
+  const pl = placeBody(angles, opts.contacts, opts.autoLevel, opts.root, undefined, { levelRoll: opts.levelRoll })
+  const com = centreOfMass(pl.pose)
+  const sup = supportRange(pl.pose, opts.contacts)
+  const margin = Math.min(0.03, (sup.maxX - sup.minX) * 0.25)
+  if (com.x < sup.minX + margin) return com.x - (sup.minX + margin)
+  if (com.x > sup.maxX - margin) return com.x - (sup.maxX - margin)
+  return 0
+}
+
+/**
+ * Sideways balance (the "hip strategy" seen in side bends): both legs tilt in parallel so
+ * the pelvis slides away from the lean, with the ankles rolling to keep the feet flat.
+ * A positive amount moves the pelvis toward the body's right (-x).
+ */
+const LATERAL_SHIFT: DofShift[] = [
+  { dof: 'hipL.abduction', k: 1 },
+  { dof: 'hipR.abduction', k: -1 },
+  { dof: 'ankleL.inversion', k: -1 },
+  { dof: 'ankleR.inversion', k: 1 },
+]
+
+function lateralShift(angles: Angles, opts: CompensationOptions): { angles: Angles; note: Compensation } | null {
+  const feet = (['L', 'R'] as const).filter((s) => opts.contacts.some((c) => c.endsWith(s) && (c.startsWith('heel') || c.startsWith('ball'))))
+  if (feet.length < 2) return null // one-legged stances balance by their own pose
+  const off = comOffsetX(angles, opts)
+  if (off === 0) return null
+  const dir = off > 0 ? 1 : -1 // too far left (+x): shift right
+  const f = (d: number) => comOffsetX(applyShifts(angles, LATERAL_SHIFT, ['L', 'R'], dir * d), opts)
+  let lo = 0
+  let hi = 25
+  if (Math.sign(f(hi)) === Math.sign(off)) {
+    lo = hi
+  } else {
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2
+      if (Math.sign(f(mid)) === Math.sign(off)) lo = mid
+      else hi = mid
+    }
+    lo = hi
+  }
+  if (lo < 0.5) return null
+  const next = applyShifts(angles, LATERAL_SHIFT, ['L', 'R'], dir * lo)
+  const changes: Record<string, number> = {}
+  for (const k of Object.keys(next)) if (Math.abs(next[k] - angles[k]) > 0.05) changes[k] = next[k] - angles[k]
+  const toward = dir > 0 ? 'right' : 'left'
+  return {
+    angles: next,
+    note: { id: 'balance-side', muscleId: '', sides: ['L', 'R'], amount: lo, text: `To stay balanced the hips slide to the ${toward}, away from the lean (legs tilt about ${r0(lo)}°).`, changes },
+  }
 }

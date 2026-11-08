@@ -71,6 +71,10 @@ const FUNCTIONAL_RANGE: ((s: Side) => Angles)[] = [
   () => ({ 'neck.flexion': -50 }),
   () => ({ 'neck.rotation': 70 }),
   () => ({ 'neck.rotation': -70 }),
+  () => ({ 'lumbar.lateral': 22, 'thoracic.lateral': 22 }),
+  () => ({ 'lumbar.lateral': -22, 'thoracic.lateral': -22 }),
+  () => ({ 'neck.lateral': 35 }),
+  () => ({ 'neck.lateral': -35 }),
   () => ({ 'thoracic.rotation': 35, 'lumbar.rotation': 10 }),
   () => ({ 'thoracic.rotation': -35, 'lumbar.rotation': -10 }),
 ]
@@ -117,8 +121,9 @@ export function buildModel(profile: Profile): StrandModel[] {
       const personalTest = test.profileKey ? pathLength(testPose(testId, testValue(test, profile), inst.side), nodes) : normalTest
       let typical = normalTest
       for (const pose of functionalPoses(inst.side)) typical = Math.max(typical, pathLength(pose, nodes))
-      // Typical comfortable length, never less than a 6 % range.
-      typical = Math.max(typical, restLength * 1.06)
+      // Typical comfortable length, never less than a small range (long-tendon muscles such
+      // as the gastrocnemius only change length by a few per cent over their whole range).
+      typical = Math.max(typical, restLength * 1.025, restLength + 0.012)
       const span = typical - restLength
       // Personal tightness (or extra flexibility) scales the comfortable range by how much of
       // the typical test range this person reaches (0.4..1.6 so extreme inputs stay sane).

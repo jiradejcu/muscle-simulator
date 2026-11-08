@@ -11,13 +11,14 @@ import { computeWarnings, type Warning } from './warnings'
 export interface AnalysisInput {
   /** Angles the user asked for (pose preset or sliders). */
   target: Angles
-  pose: Pick<PoseDef, 'contacts' | 'autoLevel' | 'balance'> & { contacts: string[] }
+  pose: Pick<PoseDef, 'contacts' | 'autoLevel' | 'balance' | 'levelRoll'> & { contacts: string[] }
   root: { pitch: number; roll: number }
   load: LoadSpec
   profile: Profile
   model: StrandModel[]
   compensate: boolean
   pitchHint?: number
+  rollHint?: number
 }
 
 export interface Analysis {
@@ -35,9 +36,9 @@ export function analyse(input: AnalysisInput): Analysis {
   // Postural conditions shift the habitual posture before anything else happens.
   const postured = applyConditions(target, profile.conditions)
   const comp = input.compensate
-    ? compensate(postured, model, { contacts: pose.contacts, autoLevel: pose.autoLevel, balance: !!pose.balance, root })
+    ? compensate(postured, model, { contacts: pose.contacts, autoLevel: pose.autoLevel, balance: !!pose.balance, levelRoll: !!pose.levelRoll, root })
     : { angles: postured, notes: [] }
-  const placement = placeBody(comp.angles, pose.contacts, pose.autoLevel, root, input.pitchHint)
+  const placement = placeBody(comp.angles, pose.contacts, pose.autoLevel, root, input.pitchHint, { levelRoll: pose.levelRoll, rollHint: input.rollHint })
   const sim = simulate(comp.angles, placement.root, model, profile, pose.contacts, load)
   const weakened = Object.values(profile.muscleStrength ?? {}).some((v) => v !== 1) || CONDITIONS.some((c) => c.weakness && (profile.conditions?.[c.id] ?? 0) > 0)
   const baseline = weakened

@@ -454,3 +454,48 @@ describe('weak muscles', () => {
     expect(res.warnings.some((x) => x.id.startsWith('cannot-hold-knee'))).toBe(true)
   })
 })
+
+describe('side stretches', () => {
+  it('a left side bend stretches the right side of the trunk', () => {
+    const sim = run(POSE_BY_ID.sideBend).sim
+    for (const id of ['latissimusDorsi', 'quadratusLumborum', 'erectorSpinae', 'externalOblique']) {
+      expect(sim.muscleByKey[`${id}.R`].stretch).toBeGreaterThan(sim.muscleByKey[`${id}.L`].stretch + 0.2)
+    }
+  })
+
+  it('keeps the side bend balanced over the feet', () => {
+    const res = run(POSE_BY_ID.sideBend)
+    expect(res.sim.imbalance).toBeLessThan(0.03)
+    const feet = ['heelL', 'heelR', 'ballL', 'ballR'].map((c) => transformPoint(res.sim.pose, LANDMARKS[c].seg, LANDMARKS[c].p).x)
+    expect(res.sim.com.x).toBeGreaterThan(Math.min(...feet))
+    expect(res.sim.com.x).toBeLessThan(Math.max(...feet))
+  })
+
+  it('slides the hips sideways to rebalance a side lean with feet together', () => {
+    const res = run(POSE_BY_ID.sideBend, normal, true, { 'hipL.abduction': 0, 'hipR.abduction': 0, 'ankleL.inversion': 0, 'ankleR.inversion': 0, 'lumbar.lateral': 25, 'thoracic.lateral': 25 })
+    expect(res.compensations.some((c) => c.id === 'balance-side')).toBe(true)
+    expect(res.sim.imbalance).toBeLessThan(0.03)
+  })
+
+  it('levels wide stances sideways (roll) so both feet are flat', () => {
+    const res = run(POSE_BY_ID.triangle)
+    expect(Math.abs(res.sim.root.roll)).toBeGreaterThan(2)
+    for (const c of poseContacts(POSE_BY_ID.triangle)) {
+      expect(transformPoint(res.sim.pose, LANDMARKS[c].seg, LANDMARKS[c].p).y).toBeLessThan(0.03)
+    }
+  })
+
+  it('stretches the intended muscle in each new stretch pose', () => {
+    const expectations: [string, string][] = [
+      ['triangle', 'adductors.R'],
+      ['gatePose', 'latissimusDorsi.R'],
+      ['neckSide', 'trapezius.R'],
+      ['seatedTwist', 'internalOblique.R'],
+      ['chestOpener', 'pectoralisMajor.L'],
+      ['tricepsStretch', 'tricepsBrachii.R'],
+      ['calfStretch', 'gastrocnemius.R'],
+      ['straddle', 'hamstrings.L'],
+    ]
+    for (const [pose, muscle] of expectations) expect(run(POSE_BY_ID[pose]).sim.muscleByKey[muscle].stretch, `${pose} ${muscle}`).toBeGreaterThan(0.85)
+  })
+})

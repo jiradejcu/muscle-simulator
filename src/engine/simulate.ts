@@ -326,7 +326,26 @@ export function simulate(
   // has to go to other muscles, or to passive joint structures (reserves) if none can help.
   const upper = new Float64Array(nX).fill(Infinity)
   for (let i = 0; i < nS; i++) upper[i] = fmax[i]
-  const x = weightedMinNorm(A, rhs, nRows, nX, w, nonNeg, upper)
+  let x = weightedMinNorm(A, rhs, nRows, nX, w, nonNeg, upper)
+  // Friction cannot exceed a fraction of the push at that contact. The cost-based friction
+  // above ignores that, so if any contact slips, re-price its friction in proportion to the
+  // weight it carries and solve again (a cheap approximation of a friction cone).
+  const slipping = () => {
+    for (let c = 0; c < nC; c++) {
+      const i = oC + c * 3
+      if (Math.hypot(x[i], x[i + 2]) > 0.5 * x[i + 1] + 10) return true
+    }
+    return false
+  }
+  for (let pass = 0; pass < 2 && nC && slipping(); pass++) {
+    for (let c = 0; c < nC; c++) {
+      const i = oC + c * 3
+      const scale = 0.25 * Math.max(x[i + 1], totalWeight * 0.01)
+      w[i] = Math.min(w[i], scale)
+      w[i + 2] = Math.min(w[i + 2], scale)
+    }
+    x = weightedMinNorm(A, rhs, nRows, nX, w, nonNeg, upper)
+  }
 
   // Floor forces chosen by the optimisation
   for (let c = 0; c < nC; c++) {

@@ -38,11 +38,11 @@ function PosesTab() {
   const compensate = useStore((s) => s.compensate)
   const setCompensate = useStore((s) => s.setCompensate)
   const pose = poseId ? POSE_BY_ID[poseId] : null
-  const categories = ['Standing', 'Floor', 'Stretch'] as const
+  const categories = ['Standing', 'Floor', 'Stretch', 'Side'] as const
   return (
     <>
       {categories.map((cat) => (
-        <Section key={cat} title={cat}>
+        <Section key={cat} title={cat === 'Side' ? 'Side & twist stretches' : cat}>
           <div className="grid grid-cols-2 gap-1.5">
             {POSES.filter((p) => p.category === cat).map((p) => (
               <button

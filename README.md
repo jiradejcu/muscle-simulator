@@ -22,7 +22,10 @@ npm run build      # type-check + production build into dist/
 
 ## Using it
 
-- **Poses tab**: 18 presets (squats, deadlifts, push-ups, plank, lunge, yoga poses, stretches).
+- **Poses tab**: 30 presets: strength poses (squats, deadlifts, push-ups, plank, overhead press),
+  stretches (forward folds, straddle, butterfly, child's pose, chest, triceps, calf, quad, cobra) and
+  side and twist stretches (standing side bend, triangle, Cossack side lunge, gate pose, neck side
+  stretch, seated twist).
   Changing pose animates. Loaded poses have a weight slider. "Body linkage" lets tight
   muscles push the movement into neighbouring joints.
 - **Joints tab**: a slider for every degree of freedom (37 in total). When the body
@@ -51,9 +54,9 @@ npm run build      # type-check + production build into dist/
 | Kinematics | `kinematics.ts` | Forward kinematics; every segment maps rest-world points to the current pose. |
 | Muscles | `muscles.ts`, `landmarks.ts`, `musclePath.ts` | 33 muscle groups per side (120 strands). Paths run through bony landmarks and wrap around joint cylinders with a fixed winding, so moment arms stay continuous. |
 | Comfortable range | `model.ts`, `profile.ts` | Comfortable length comes from a library of normal full-range positions. The person's test angles scale it. |
-| Placement | `statics.ts` | Tilts the body so the pose's contact points sit level on the floor, then grounds it. |
+| Placement | `statics.ts` | Tilts the body (pitch, and roll for wide or one-sided stances) so the pose's contact points sit level on the floor, then grounds it. |
 | Statics | `simulate.ts` | Gravity and external load give the torque needed at each joint (virtual work by finite differences). One optimisation (active-set QP in `linalg.ts`) chooses muscle forces, floor forces at every contact (push plus moderately priced friction), hand-holds-foot tension and small joint "reserve" torques together, minimising summed squared activation subject to joint and whole-body balance. So the body puts its weight where that costs the least effort. Passive stretch forces are included. |
-| Linkage | `compensation.ts` | Rules such as "tight hamstrings → less hip flexion, more lumbar flexion"; a balance step keeps the centre of mass over the feet. |
+| Linkage | `compensation.ts` | Rules such as "tight hamstrings → less hip flexion, more lumbar flexion"; balance steps keep the centre of mass over the feet, forward-back (ankle strategy) and side to side (hips slide away from a lean). |
 | Conditions | `conditions.ts` | Postural offsets and muscle weakness scaled by severity. |
 | Warnings | `warnings.ts` | Rounded back under load, hyperextension, knee valgus, shoulder impingement, end of range, over-stretch, overload, balance. |
 | Explanations | `explain.ts` | Which joints lengthen each muscle (in mm), what it is working against, how it feels. |
