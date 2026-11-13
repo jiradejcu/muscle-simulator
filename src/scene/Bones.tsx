@@ -27,7 +27,7 @@ function useBoneOverrides(): Partial<Record<SegmentId, BufferGeometry[]>> {
   const [over, setOver] = useState<Partial<Record<SegmentId, BufferGeometry[]>>>({})
   useEffect(() => {
     let cancelled = false
-    fetch('models/bones/manifest.json')
+    fetch(`${import.meta.env.BASE_URL}models/bones/manifest.json`)
       .then((r) => (r.ok ? r.json() : null))
       .then(async (manifest: Record<string, string> | null) => {
         if (!manifest || cancelled) return
@@ -35,7 +35,7 @@ function useBoneOverrides(): Partial<Record<SegmentId, BufferGeometry[]>> {
         const out: Partial<Record<SegmentId, BufferGeometry[]>> = {}
         for (const [seg, file] of Object.entries(manifest)) {
           try {
-            const gltf = await loader.loadAsync(`models/bones/${file}`)
+            const gltf = await loader.loadAsync(`${import.meta.env.BASE_URL}models/bones/${file}`)
             const geos: BufferGeometry[] = []
             gltf.scene.updateMatrixWorld(true)
             gltf.scene.traverse((o) => {

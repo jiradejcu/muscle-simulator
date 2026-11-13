@@ -17,7 +17,18 @@ export default function App() {
           <h1 className="text-[15px] font-semibold tracking-tight">Muscle Simulator</h1>
           <span className="text-[12px] text-slate-400">What your muscles do in common exercise poses</span>
         </div>
-        <span className="text-[11px] text-slate-500">Educational model, not a medical tool. Based on simplified rules about stretch, load and joint position.</span>
+        <div
+          role="note"
+          title="Based on simplified rules about stretch, load and joint position. It does not simulate real tissue and cannot diagnose anything."
+          className="flex items-center gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-2.5 py-1 text-[12px] text-amber-200"
+        >
+          <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 shrink-0 fill-amber-400">
+            <path d="M10 2 1 18h18L10 2Zm-1 6h2v5H9V8Zm0 6h2v2H9v-2Z" />
+          </svg>
+          <span>
+            <b className="font-semibold text-amber-100">Educational model, not a medical tool.</b> If a pose causes pain, see a qualified professional.
+          </span>
+        </div>
       </header>
       <main className="flex min-h-0 flex-1">
         <LeftPanel />

@@ -1,8 +1,8 @@
 # Muscle Simulator
 
-**Live demo:** _coming soon_ · Free, open source (MIT), runs in the browser.
+**Live demo:** https://jiradejcu.github.io/muscle-simulator/ · Free, open source (MIT), runs in the browser.
 
-<!-- Add a screenshot or GIF here: ![Muscle Simulator](docs/screenshot.png) -->
+![Muscle Simulator: switching between a deep squat, downward dog, triangle pose, push-up and seated forward bend](docs/demo.gif)
 
 An educational web app that shows what human muscles do in common exercise poses:
 which muscles contract, which stretch, how much tension they carry, and why a pose can hurt
@@ -14,7 +14,7 @@ plain-language explanation.
 
 ## Running it
 
-Requires Node.js 20 or later.
+Requires Node.js 20.19+ or 22.12+ (needed by Vite 8).
 
 ```bash
 npm install
@@ -25,6 +25,9 @@ npm run build      # type-check + production build into dist/
 ```
 
 ## Using it
+
+![Bodyweight squat with the left quadriceps selected, showing its stretch, effort and a plain-language explanation](docs/screenshot.png)
+
 
 - **Poses tab**: 30 presets: strength poses (squats, deadlifts, push-ups, plank, overhead press),
   stretches (forward folds, straddle, butterfly, child's pose, chest, triceps, calf, quad, cobra) and
