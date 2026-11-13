@@ -1,6 +1,10 @@
 # Muscle Simulator
 
-An educational desktop web app that shows what human muscles do in common exercise poses:
+**Live demo:** _coming soon_ · Free, open source (MIT), runs in the browser.
+
+<!-- Add a screenshot or GIF here: ![Muscle Simulator](docs/screenshot.png) -->
+
+An educational web app that shows what human muscles do in common exercise poses:
 which muscles contract, which stretch, how much tension they carry, and why a pose can hurt
 or feel stiff. Pick a preset pose or move any joint by hand, then click a muscle to read a
 plain-language explanation.
@@ -50,7 +54,7 @@ npm run build      # type-check + production build into dist/
 
 | Step | File | What it does |
 |---|---|---|
-| Skeleton | `skeleton.ts` | 18 segments, 17 joints, 39 DOFs with limits (including forearm rotation). Y up, Z forward, X to the body's left, metres. |
+| Skeleton | `skeleton.ts` | 18 segments, 17 joints, 37 DOFs with limits (including forearm rotation). Y up, Z forward, X to the body's left, metres. |
 | Kinematics | `kinematics.ts` | Forward kinematics; every segment maps rest-world points to the current pose. |
 | Muscles | `muscles.ts`, `landmarks.ts`, `musclePath.ts` | 33 muscle groups per side (120 strands). Paths run through bony landmarks and wrap around joint cylinders with a fixed winding, so moment arms stay continuous. |
 | Comfortable range | `model.ts`, `profile.ts` | Comfortable length comes from a library of normal full-range positions. The person's test angles scale it. |
@@ -100,3 +104,7 @@ warnings and key joint torques (`POSES=pushupBottom,plank npm run audit` for a s
 - Friction is a soft cost rather than a strict friction cone, and push-up pec activity is
   probably underestimated (real hands also push outward).
 - Muscle strengths and paths are rounded literature values for one average 1.75 m adult.
+
+## License
+
+[MIT](LICENSE)
