@@ -8,7 +8,7 @@ type Tab = 'poses' | 'joints' | 'profile'
 export function LeftPanel() {
   const [tab, setTab] = useState<Tab>('poses')
   return (
-    <aside className="flex w-[300px] shrink-0 flex-col border-r border-slate-700/60 bg-slate-900/95">
+    <aside className="flex w-full shrink-0 flex-col border-b border-slate-700/60 md:w-[300px] md:border-b-0 md:border-r border-slate-700/60 bg-slate-900/95">
       <nav className="flex border-b border-slate-700/60">
         {(['poses', 'joints', 'profile'] as Tab[]).map((t) => (
           <button

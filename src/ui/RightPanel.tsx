@@ -9,7 +9,7 @@ const cssHeat = (v: number) => `#${heatColor(v).getHexString()}`
 
 export function RightPanel() {
   return (
-    <aside className="flex w-[360px] shrink-0 flex-col border-l border-slate-700/60 bg-slate-900/95">
+    <aside className="flex w-full shrink-0 flex-col md:w-[360px] md:border-l border-slate-700/60 bg-slate-900/95">
       <div className="flex-1 overflow-y-auto px-4 py-3">
         <MuscleDetails />
         <TakeOver />
